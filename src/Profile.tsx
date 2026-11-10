@@ -1,4 +1,4 @@
-import { ChangeEvent, FormEvent, useRef, useState } from 'react';
+import { ChangeEvent, FormEvent, useEffect, useRef, useState } from 'react';
 import { ArrowLeft, BriefcaseBusiness, CalendarDays, Check, ChevronRight, Download, Eye, EyeOff, File, FilePlus2, FileText, FolderOpen, Mail, MapPin, MoreHorizontal, Pencil, Phone, Plus, ShieldCheck, Trash2, Upload, UserRound, UsersRound, X } from 'lucide-react';
 import { Avatar, Modal, PageBack, StatusBadge, formatDate, yearsAtCompany } from './components';
 import { CustomField, Employee, EmployeeDocument, Group, Status, WorkEntry } from './types';
@@ -14,6 +14,13 @@ export default function Profile({ employee, groups, customFields, onBack, onEdit
   const [offboardOpen, setOffboardOpen] = useState(false);
   const [menu, setMenu] = useState(false);
   const docInput = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    const close = (event: MouseEvent) => {
+      if (!(event.target as HTMLElement).closest('.profile-actions .context-menu, .profile-actions .icon-btn')) setMenu(false);
+    };
+    document.addEventListener('mousedown', close);
+    return () => document.removeEventListener('mousedown', close);
+  }, []);
   const inactive = employee.status === 'Resigned' || employee.status === 'Terminated';
   const update = (patch: Partial<Employee>, message: string) => onUpdate({ ...employee, ...patch, lastUpdated: new Date().toISOString() }, message);
 

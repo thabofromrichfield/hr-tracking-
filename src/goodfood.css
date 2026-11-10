@@ -50,4 +50,10 @@ body{background:radial-gradient(circle at 8% 8%,rgba(167,180,255,.34),transparen
 .main-shell{flex:1 1 auto;width:0;min-width:0}
 .goodfood-overview{min-width:0;width:100%}
 .gf-metrics-grid,.gf-bottom-grid{width:100%}
+/* Stable viewport modals and top-bar actions */
+.topbar-actions{display:flex;align-items:center;gap:7px}.topbar-actions .btn{min-height:36px;padding:0 12px;font-size:9px}.topbar-actions .btn-secondary{background:rgba(255,255,255,.68)}
+.modal-backdrop{position:fixed;inset:0;width:100vw;height:100dvh;padding:20px;overflow:hidden;align-items:center;justify-content:center;overscroll-behavior:none}.modal{display:flex;flex-direction:column;width:520px;max-width:100%;max-height:calc(100dvh - 40px);min-height:0;overflow:hidden}.modal-wide{width:760px}.modal>form{display:flex;flex-direction:column;flex:1;min-height:0;overflow:hidden}.modal-head,.modal-footer{flex:0 0 auto;position:relative;top:auto;bottom:auto}.modal-body{flex:1 1 auto;min-height:0;overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch}.employee-form{flex:1 1 auto}.modal-footer{background:rgba(232,236,244,.94)}
+@media(max-width:1120px){.topbar-actions .btn{padding:0 10px}.topbar-actions .btn-secondary span{display:none}.topbar-actions .btn-secondary{width:36px;padding:0}.global-search{width:210px}}
+@media(max-width:760px){.topbar-actions .btn span{display:none}.topbar-actions .btn{width:36px;padding:0}.topbar-actions{gap:6px}}
+@media(max-width:640px){.topbar-actions{order:4}.topbar-actions .btn{height:36px}.modal-backdrop{padding:10px;height:100dvh}.modal{max-height:calc(100dvh - 20px)}.modal-body{max-height:none}.gf-page-heading .heading-actions{display:none}}
 @media print{body{padding:0}.app-shell{display:block;border:0;box-shadow:none}.gf-metrics-grid,.gf-bottom-grid{display:grid;grid-template-columns:repeat(2,1fr)}.topbar{display:none}.card,.gf-card{animation:none;transform:none}}

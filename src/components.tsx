@@ -1,4 +1,5 @@
 import { ReactNode, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { ChevronLeft, Download, Search, X } from 'lucide-react';
 import { Employee, Status } from './types';
 
@@ -24,12 +25,12 @@ export function Modal({ children, title, subtitle, onClose, wide = false }: { ch
     document.body.style.overflow = 'hidden';
     return () => { window.removeEventListener('keydown', handler); document.body.style.overflow = ''; };
   }, [onClose]);
-  return <div className="modal-backdrop" onMouseDown={e => e.target === e.currentTarget && onClose()}>
+  return createPortal(<div className="modal-backdrop" onMouseDown={e => e.target === e.currentTarget && onClose()}>
     <div className={`modal ${wide ? 'modal-wide' : ''}`} role="dialog" aria-modal="true">
       <div className="modal-head"><div><h2>{title}</h2>{subtitle && <p>{subtitle}</p>}</div><button className="icon-btn" onClick={onClose} aria-label="Close"><X size={20} /></button></div>
       {children}
     </div>
-  </div>;
+  </div>, document.body);
 }
 
 export function SearchInput({ value, onChange, placeholder = 'Search...', className = '' }: { value: string; onChange: (v: string) => void; placeholder?: string; className?: string }) {
