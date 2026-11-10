@@ -45,6 +45,9 @@ body{background:radial-gradient(circle at 8% 8%,rgba(167,180,255,.34),transparen
 /* Small neumorphic surfaces nested inside the glass dashboard */
 .gf-status-pills button,.active-pill,.leave-pill,.former-pill{background:linear-gradient(145deg,rgba(248,250,255,.9),rgba(229,234,244,.82));border-color:rgba(255,255,255,.75)!important;box-shadow:4px 4px 10px rgba(184,193,211,.27),-4px -4px 10px rgba(255,255,255,.65);backdrop-filter:none}.gf-report-btn{background:linear-gradient(145deg,#f0f2ff,#dfe4fa);box-shadow:3px 3px 8px rgba(184,193,211,.28),-3px -3px 8px rgba(255,255,255,.65);backdrop-filter:none}.gf-report-btn:hover{background:#5B6CF9;box-shadow:4px 5px 12px rgba(91,108,249,.25)}.gf-progress,.gf-dept-track{background:#e7ebf2;box-shadow:inset 2px 2px 5px rgba(193,201,216,.5),inset -2px -2px 5px rgba(255,255,255,.8)}.employment-selection{background:linear-gradient(145deg,rgba(248,250,255,.5),rgba(232,236,244,.45));border:1px solid rgba(255,255,255,.6);border-radius:12px;padding:11px;box-shadow:inset 1px 1px 4px rgba(193,201,216,.18),inset -1px -1px 4px rgba(255,255,255,.5)}
 @media print{.card:not(.gf-card),.modal,.new-group-card{background:#fff;box-shadow:none}.field input,.field select,.field textarea,.search-input{box-shadow:none;background:#fff}}
-/* Logo-free navigation spacing */
+/* Logo-free navigation spacing and full-width workspace */
 .sidebar-top-space{height:42px}
+.main-shell{flex:1 1 auto;width:0;min-width:0}
+.goodfood-overview{min-width:0;width:100%}
+.gf-metrics-grid,.gf-bottom-grid{width:100%}
 @media print{body{padding:0}.app-shell{display:block;border:0;box-shadow:none}.gf-metrics-grid,.gf-bottom-grid{display:grid;grid-template-columns:repeat(2,1fr)}.topbar{display:none}.card,.gf-card{animation:none;transform:none}}
