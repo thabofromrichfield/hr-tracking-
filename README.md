@@ -20,10 +20,10 @@ npm run dev
 - Document upload, replacement, opening, and removal
 - Resignation/termination offboarding and reactivation
 - Nested groups, leads, membership management, and group exports
-- Global custom employee fields and JSON workspace backups
+- Global custom employee fields and full ZIP workspace backups (records, groups, work history, documents, and photos)
 - Browser persistence via localStorage and a lock-screen workflow
 
-This version is a front-end workspace with sample data. Before using real employee data in production, connect it to an authenticated backend with encrypted file storage, role-based permissions, audit logs, and server-side backups.
+This version is a front-end workspace. A new installation starts completely empty — set up your own employees, groups, and custom fields, then use **Export → Full backup (.zip)** or **Settings → Your data** to download everything as a single ZIP archive. Before using real employee data in production, connect it to an authenticated backend with encrypted file storage, role-based permissions, audit logs, and server-side backups.
 
 ## Build
 

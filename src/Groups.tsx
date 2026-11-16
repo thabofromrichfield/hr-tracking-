@@ -23,7 +23,7 @@ export default function Groups({ employees, groups, selectedId, onSelect, onOpen
 
   return <div className="groups-page">
     <div className="page-heading"><div><div className="eyebrow">ORGANISATION</div><h1>Groups & divisions</h1><p>Bring people together by team, site, division, or project crew.</p></div><button className="btn btn-primary" onClick={() => setModal('create')}><Plus size={17} />Create group</button></div>
-    <div className="group-overview"><div><UsersRound size={20} /><span><strong>{groups.length}</strong> groups</span></div><p>{active.filter(e => e.groups.length).length} of {active.length} active employees belong to at least one group</p></div>
+    <div className="group-overview"><div><UsersRound size={20} /><span><strong>{groups.length}</strong> groups</span></div><p>{groups.length ? `${active.filter(e => e.groups.length).length} of ${active.length} active employees belong to at least one group` : "Create a group to organise your team by site, division, or project."}</p></div>
     <div className="groups-grid">{groups.map(group => {
       const count = employees.filter(e => e.groups.includes(group.id) && e.status !== 'Resigned' && e.status !== 'Terminated').length;
       const membersPreview = employees.filter(e => e.groups.includes(group.id)).slice(0, 4);
