@@ -172,3 +172,34 @@ body{background:radial-gradient(circle at 8% 8%,rgba(167,180,255,.34),transparen
 @media(max-width:640px){.hr-stats{grid-template-columns:1fr 1fr}.week-nav{flex-wrap:wrap}.payslip-body{padding:10px}.payslip-sheet{padding:16px}.payslip-person{grid-template-columns:1fr 1fr}.payslip-columns{grid-template-columns:1fr}.generate-summary{grid-template-columns:1fr 1fr}.payslip-totals{grid-template-columns:1fr 1fr}.warning-categories{overflow-x:auto;flex-wrap:nowrap}}
 @media print{body.payslip-open *{visibility:hidden}body.payslip-open .payslip-sheet,body.payslip-open .payslip-sheet *{visibility:visible}body.payslip-open .payslip-sheet{position:absolute;left:0;top:0;width:100%;box-shadow:none;padding:0}body.payslip-open .modal-backdrop{position:static;background:none;padding:0}body.payslip-open .modal{box-shadow:none;background:#fff;border:0;max-height:none}body.payslip-open .modal-head,body.payslip-open .modal-footer{display:none!important}}
 @media print{body{padding:0}.app-shell{display:block;border:0;box-shadow:none}.gf-metrics-grid,.gf-bottom-grid{display:grid;grid-template-columns:repeat(2,1fr)}.topbar{display:none}.card,.gf-card{animation:none;transform:none}}
+
+/* Stable app frame: the page itself never scrolls; panes scroll inside */
+html{height:100%}
+body{height:100%;overflow:hidden;overscroll-behavior:none}
+.app-shell{height:calc(100vh - 40px);min-height:0}
+@supports (height:100dvh){.app-shell{height:calc(100dvh - 40px)}}
+.main-shell{height:100%;min-height:0;display:flex;flex-direction:column;overflow:hidden}
+.topbar{flex:0 0 auto}
+.page-content{flex:1 1 auto;min-height:0;overflow-y:auto;overscroll-behavior:contain;scrollbar-width:thin}
+@media(min-width:901px){
+  .sidebar{height:100%;min-height:0;top:0;display:flex;flex-direction:column;overflow:hidden}
+  .main-nav{flex:1 1 auto;min-height:0;overflow-y:auto;overscroll-behavior:contain;scrollbar-width:thin;padding-right:4px;margin-right:-4px}
+  .sidebar-top-space,.sidebar-workspace-label,.sidebar-bottom{flex:0 0 auto}
+}
+@media(max-width:900px){
+  .app-shell{height:calc(100vh - 24px);min-height:0}
+  @supports (height:100dvh){.app-shell{height:calc(100dvh - 24px)}}
+  .main-shell{height:100%;min-height:0}
+  .sidebar{display:flex;flex-direction:column;overflow:hidden;min-height:0}
+  .main-nav{flex:1 1 auto;min-height:0;overflow-y:auto;overscroll-behavior:contain}
+  .sidebar-bottom{flex:0 0 auto}
+}
+@media(max-width:640px){
+  .app-shell{height:100vh;border-radius:0}
+  @supports (height:100dvh){.app-shell{height:100dvh}}
+  .sidebar{height:100vh;height:100dvh}
+}
+@media print{
+  html,body{height:auto;overflow:visible}
+  .app-shell,.main-shell,.page-content{height:auto;overflow:visible}
+}
