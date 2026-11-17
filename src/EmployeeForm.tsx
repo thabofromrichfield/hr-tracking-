@@ -1,18 +1,18 @@
 import { FormEvent, useRef, useState } from 'react';
 import { Camera, Save } from 'lucide-react';
 import { departments } from './data';
-import { CustomField, Employee, EmploymentType, Status } from './types';
+import { Branch, CustomField, Employee, EmploymentType, Status } from './types';
 import { Avatar, Modal } from './components';
 
-const blank: Omit<Employee, 'id' | 'lastUpdated' | 'workHistory' | 'documents' | 'groups'> = {
+const blank: Omit<Employee, 'id' | 'lastUpdated' | 'workHistory' | 'documents'> = {
   fullName: '', idNumber: '', employeeNumber: '', dob: '', phone: '', email: '', address: '', emergencyName: '', emergencyPhone: '',
   jobTitle: '', department: 'Engineering', manager: '', employmentType: 'Full-time', startDate: new Date().toISOString().slice(0, 10),
-  status: 'Active', bio: '', skills: '', languages: '', custom: {},
+  status: 'Active', bio: '', skills: '', languages: '', custom: {}, branchId: '', monthlySalary: 0,
 };
 
-export default function EmployeeForm({ employee, customFields, onClose, onSave }: {
-  employee?: Employee; customFields: CustomField[]; onClose: () => void;
-  onSave: (data: Omit<Employee, 'id' | 'lastUpdated' | 'workHistory' | 'documents' | 'groups'>) => void;
+export default function EmployeeForm({ employee, customFields, branches, onClose, onSave }: {
+  employee?: Employee; customFields: CustomField[]; branches: Branch[]; onClose: () => void;
+  onSave: (data: Omit<Employee, 'id' | 'lastUpdated' | 'workHistory' | 'documents'>) => void;
 }) {
   const [form, setForm] = useState(employee ? { ...employee, custom: { ...employee.custom } } : blank);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -45,6 +45,8 @@ export default function EmployeeForm({ employee, customFields, onClose, onSave }
           <Field label="Reports to"><input value={form.manager} onChange={e => set('manager', e.target.value)} placeholder="Manager's full name" /></Field>
           <Field label="Employment type"><select value={form.employmentType} onChange={e => set('employmentType', e.target.value as EmploymentType)}><option>Full-time</option><option>Part-time</option><option>Contract</option></select></Field>
           <Field label="Start date" required><input required type="date" value={form.startDate} onChange={e => set('startDate', e.target.value)} /></Field>
+          <Field label="Branch"><select value={form.branchId || ''} onChange={e => set('branchId', e.target.value)}><option value="">No branch</option>{branches.map(branch => <option key={branch.id} value={branch.id}>{branch.name}</option>)}</select></Field>
+          <Field label="Monthly salary (R)"><input type="number" min={0} step={0.01} value={form.monthlySalary ?? ''} onChange={e => setForm(f => ({ ...f, monthlySalary: Number(e.target.value) }))} placeholder="Used to generate payslips" /></Field>
           <Field label="Status"><select value={form.status} onChange={e => set('status', e.target.value as Status)}><option>Active</option><option>On leave</option><option>Resigned</option><option>Terminated</option></select></Field>
           {(form.status === 'Resigned' || form.status === 'Terminated') && <Field label="End date" required><input required type="date" value={form.endDate || ''} onChange={e => set('endDate', e.target.value)} /></Field>}
         </FormSection>

@@ -1,5 +1,6 @@
 import JSZip from 'jszip';
-import { CustomField, Employee, EmployeeDocument, Group, WorkEntry } from './types';
+import { Branch, CustomField, Employee, EmployeeDocument, LeaveRequest, LeaveStatus, LeaveType, Payslip, TimeEntry, Warning, WarningCategory, WarningSeverity, WorkEntry } from './types';
+import { workedHours } from './time';
 
 interface FileRef {
   kind: 'photo' | 'document' | 'document-placeholder';
@@ -8,10 +9,22 @@ interface FileRef {
   path: string;
 }
 
+export interface BackupCounts {
+  employees: number;
+  branches: number;
+  customFields: number;
+  documents: number;
+  photos: number;
+  timeEntries: number;
+  leaveRequests: number;
+  payslips: number;
+  warnings: number;
+}
+
 export interface BackupResult {
   blob: Blob;
   fileName: string;
-  counts: { employees: number; groups: number; customFields: number; documents: number; photos: number };
+  counts: BackupCounts;
 }
 
 const pad = (value: number) => String(value).padStart(2, '0');
@@ -43,6 +56,13 @@ const MIME_EXTENSIONS: Record<string, string> = {
   'application/vnd.ms-excel': 'xls', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': 'xlsx',
 };
 
+const MIME_BY_EXTENSION: Record<string, string> = {
+  pdf: 'application/pdf', png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg', gif: 'image/gif', webp: 'image/webp',
+  txt: 'text/plain', csv: 'text/csv', doc: 'application/msword',
+  docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  xls: 'application/vnd.ms-excel', xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+};
+
 function decodeDataUrl(dataUrl: string): { bytes: Uint8Array; ext: string } | null {
   const match = /^data:([^;,]*)(;base64)?,([\s\S]*)$/.exec(dataUrl);
   if (!match) return null;
@@ -61,69 +81,112 @@ function decodeDataUrl(dataUrl: string): { bytes: Uint8Array; ext: string } | nu
   }
 }
 
-const withExtension = (name: string, ext: string) => {
-  const hasExtension = /\.[a-z0-9]{1,5}$/i.test(name);
-  return hasExtension ? name : `${name}.${ext}`;
-};
+const withExtension = (name: string, ext: string) => (/\.[a-z0-9]{1,5}$/i.test(name) ? name : `${name}.${ext}`);
+const mimeFor = (path: string) => MIME_BY_EXTENSION[path.split('.').pop()?.toLowerCase() || ''] || 'application/octet-stream';
+const baseName = (path: string) => path.split('/').pop() || path;
+const comparable = (name: string) => baseName(name)
+  .toLowerCase()
+  .replace(/\.[a-z0-9]{1,5}$/i, '')
+  .replace(/\(\d+\)$/, '')
+  .replace(/[^a-z0-9]+/g, ' ')
+  .trim();
 
 const csvValue = (value: unknown) => `"${String(value ?? '').replaceAll('"', '""')}"`;
-const toCsv = (headers: string[], rows: unknown[][]) =>
-  '\ufeff' + [headers, ...rows].map(row => row.map(csvValue).join(',')).join('\r\n');
+const toCsv = (headers: string[], rows: unknown[][]) => '\ufeff' + [headers, ...rows].map(row => row.map(csvValue).join(',')).join('\r\n');
+const round = (value: number) => Math.round((Number(value) || 0) * 100) / 100;
 
-function employeeCsv(employees: Employee[], groups: Group[]) {
-  const headers = ['Full name', 'Employee number', 'ID number', 'Job title', 'Department', 'Manager', 'Employment type', 'Status', 'Start date', 'End date', 'Email', 'Phone', 'Groups', 'Documents', 'Last updated'];
-  const rows = employees.map(e => [
-    e.fullName, e.employeeNumber, e.idNumber, e.jobTitle, e.department, e.manager, e.employmentType, e.status,
-    e.startDate, e.endDate || '', e.email, e.phone,
-    e.groups.map(id => groups.find(g => g.id === id)?.name || id).join('; '),
-    e.documents.map(d => d.name).join('; '), e.lastUpdated,
-  ]);
-  return toCsv(headers, rows);
+function employeeCsv(employees: Employee[], branches: Branch[]) {
+  const headers = ['Full name', 'Employee number', 'ID number', 'Job title', 'Department', 'Branch', 'Manager', 'Employment type', 'Status', 'Start date', 'End date', 'Email', 'Phone', 'Monthly salary', 'Documents', 'Last updated'];
+  return toCsv(headers, employees.map(employee => [
+    employee.fullName, employee.employeeNumber, employee.idNumber, employee.jobTitle, employee.department,
+    branches.find(branch => branch.id === employee.branchId)?.name || '', employee.manager, employee.employmentType,
+    employee.status, employee.startDate, employee.endDate || '', employee.email, employee.phone, employee.monthlySalary || 0,
+    employee.documents.map(doc => doc.name).join('; '), employee.lastUpdated,
+  ]));
 }
 
 function workHistoryCsv(employees: Employee[]) {
   const headers = ['Employee', 'Employee number', 'Role', 'Project', 'Start date', 'End date', 'Description', 'Attached document'];
-  const rows = employees.flatMap(e => e.workHistory.map(w => [e.fullName, e.employeeNumber, w.title, w.project, w.startDate, w.endDate || 'Present', w.description, w.document || '']));
-  return toCsv(headers, rows);
+  return toCsv(headers, employees.flatMap(employee => employee.workHistory.map(entry => [employee.fullName, employee.employeeNumber, entry.title, entry.project, entry.startDate, entry.endDate || 'Present', entry.description, entry.document || ''])));
 }
 
-function groupCsv(groups: Group[], employees: Employee[]) {
-  const headers = ['Group', 'Description', 'Lead', 'Parent group', 'Members'];
-  const rows = groups.map(g => [
-    g.name, g.description, g.lead, groups.find(p => p.id === g.parentId)?.name || '',
-    employees.filter(e => e.groups.includes(g.id)).map(e => e.fullName).join('; '),
-  ]);
-  return toCsv(headers, rows);
+function branchCsv(branches: Branch[], employees: Employee[]) {
+  const headers = ['Branch', 'Description', 'Lead', 'Members'];
+  return toCsv(headers, branches.map(branch => [branch.name, branch.description, branch.lead, employees.filter(employee => employee.branchId === branch.id).map(employee => employee.fullName).join('; ')]));
 }
 
-function readme(counts: BackupResult['counts'], exportedAt: string) {
+function timesheetCsv(entries: TimeEntry[], employees: Employee[], branches: Branch[]) {
+  const headers = ['Employee', 'Employee number', 'Branch', 'Date', 'Clock in', 'Clock out', 'Break (minutes)', 'Hours', 'Status', 'Source', 'Notes'];
+  return toCsv(headers, entries.map(entry => {
+    const employee = employees.find(person => person.id === entry.employeeId);
+    return [employee?.fullName || '', employee?.employeeNumber || '', branches.find(branch => branch.id === employee?.branchId)?.name || '', entry.date, entry.clockIn, entry.clockOut || '', entry.breakMinutes, workedHours(entry).toFixed(2), entry.approved ? 'Approved' : 'Pending', entry.source, entry.notes || ''];
+  }));
+}
+
+function leaveCsv(requests: LeaveRequest[], employees: Employee[]) {
+  const headers = ['Employee', 'Employee number', 'Leave type', 'From', 'To', 'Working days', 'Reason', 'Status', 'Requested'];
+  return toCsv(headers, requests.map(request => {
+    const employee = employees.find(person => person.id === request.employeeId);
+    return [employee?.fullName || '', employee?.employeeNumber || '', request.type, request.startDate, request.endDate, request.days, request.reason, request.status, request.requestedAt];
+  }));
+}
+
+function payslipCsv(payslips: Payslip[], employees: Employee[], branches: Branch[]) {
+  const headers = ['Employee', 'Employee number', 'Branch', 'Period', 'Pay date', 'Gross', 'Overtime', 'Allowances', 'PAYE', 'UIF employee', 'UIF employer', 'Other deductions', 'Net pay'];
+  return toCsv(headers, payslips.map(slip => {
+    const employee = employees.find(person => person.id === slip.employeeId);
+    return [employee?.fullName || '', employee?.employeeNumber || '', branches.find(branch => branch.id === employee?.branchId)?.name || '', slip.period, slip.payDate, slip.gross.toFixed(2), slip.overtime.toFixed(2), slip.allowances.toFixed(2), slip.paye.toFixed(2), slip.uifEmployee.toFixed(2), slip.uifEmployer.toFixed(2), slip.deductions.toFixed(2), slip.net.toFixed(2)];
+  }));
+}
+
+function warningCsv(warnings: Warning[], employees: Employee[]) {
+  const headers = ['Employee', 'Employee number', 'Category', 'Level', 'Issued on', 'Issued by', 'Details', 'Acknowledged'];
+  return toCsv(headers, warnings.map(warning => {
+    const employee = employees.find(person => person.id === warning.employeeId);
+    return [employee?.fullName || '', employee?.employeeNumber || '', warning.category === 'Custom' ? warning.customCategory || 'Custom' : warning.category, warning.severity, warning.issuedDate, warning.issuedBy, warning.details, warning.acknowledged ? 'Yes' : 'No'];
+  }));
+}
+
+function readme(counts: BackupCounts, exportedAt: string) {
   return `PEOPLEFLOW HR — FULL WORKSPACE BACKUP
 =====================================
 
 Exported: ${new Date(exportedAt).toLocaleString('en-ZA')}
 
 Employees:      ${counts.employees}
-Groups:         ${counts.groups}
+Branches:       ${counts.branches}
 Custom fields:  ${counts.customFields}
+Time entries:   ${counts.timeEntries}
+Leave requests: ${counts.leaveRequests}
+Payslips:       ${counts.payslips}
+Warnings:       ${counts.warnings}
 Documents:      ${counts.documents}
 Photos:         ${counts.photos}
 
 WHAT IS IN THIS ZIP
 -------------------
 employees.json          Complete employee records, including work history,
-                        document details, custom fields, and group membership.
+                        documents, custom fields, branch, and salary.
 employees.csv           Spreadsheet-friendly employee list.
 work-history.csv        Every work history entry, one row each.
-groups.json             Groups, divisions, leads, and hierarchy.
-groups.csv              Groups with their member lists.
+branches.json           Branches with leads and descriptions.
+branches.csv            Branches with their member lists.
 custom-fields.json      Custom employee field definitions.
+timesheets.json         Clocking sessions with hours and approval state.
+timesheets.csv          Clocking sessions for spreadsheets.
+leave-requests.json     Leave requests with status and working days.
+leave-requests.csv      Leave requests for spreadsheets.
+payslips.json           Generated payslips with UIF and PAYE amounts.
+payslips.csv            Payslips for spreadsheets.
+warnings.json           Warning records by category and level.
+warnings.csv            Warning records for spreadsheets.
 documents/              Uploaded files, stored per employee.
 photos/                 Employee profile photos.
 manifest.json           Export summary and file index.
 README.txt              This file.
 
-The JSON files hold the authoritative record. The CSV files are convenience
-copies for spreadsheets and reporting.
+The JSON files are the authoritative record and are what Import reads. The
+CSV files are convenience copies for spreadsheets and reporting.
 
 This archive contains workspace data only. Your application code, build
 files, and settings are never included, and importing it only restores the
@@ -140,19 +203,42 @@ information — store it securely and share it only with authorised HR users.
 `;
 }
 
-export async function createWorkspaceZip(employees: Employee[], groups: Group[], customFields: CustomField[]): Promise<BackupResult> {
+export async function createWorkspaceZip(
+  employees: Employee[],
+  branches: Branch[],
+  customFields: CustomField[],
+  timeEntries: TimeEntry[],
+  leaveRequests: LeaveRequest[],
+  payslips: Payslip[],
+  warnings: Warning[],
+): Promise<BackupResult> {
   const zip = new JSZip();
   const exportedAt = new Date().toISOString();
-  const date = stamp();
-  const counts: BackupResult['counts'] = { employees: employees.length, groups: groups.length, customFields: customFields.length, documents: 0, photos: 0 };
-  const contents = ['manifest.json', 'README.txt', 'employees.json', 'employees.csv', 'work-history.csv', 'groups.json', 'groups.csv', 'custom-fields.json'];
+  const counts: BackupCounts = {
+    employees: employees.length, branches: branches.length, customFields: customFields.length,
+    documents: 0, photos: 0, timeEntries: timeEntries.length, leaveRequests: leaveRequests.length,
+    payslips: payslips.length, warnings: warnings.length,
+  };
+  const contents = [
+    'manifest.json', 'README.txt', 'employees.json', 'employees.csv', 'work-history.csv',
+    'branches.json', 'branches.csv', 'custom-fields.json', 'timesheets.json', 'timesheets.csv',
+    'leave-requests.json', 'leave-requests.csv', 'payslips.json', 'payslips.csv', 'warnings.json', 'warnings.csv',
+  ];
 
   zip.file('employees.json', JSON.stringify(employees, null, 2));
-  zip.file('employees.csv', employeeCsv(employees, groups));
+  zip.file('employees.csv', employeeCsv(employees, branches));
   zip.file('work-history.csv', workHistoryCsv(employees));
-  zip.file('groups.json', JSON.stringify(groups, null, 2));
-  zip.file('groups.csv', groupCsv(groups, employees));
+  zip.file('branches.json', JSON.stringify(branches, null, 2));
+  zip.file('branches.csv', branchCsv(branches, employees));
   zip.file('custom-fields.json', JSON.stringify(customFields, null, 2));
+  zip.file('timesheets.json', JSON.stringify(timeEntries, null, 2));
+  zip.file('timesheets.csv', timesheetCsv(timeEntries, employees, branches));
+  zip.file('leave-requests.json', JSON.stringify(leaveRequests, null, 2));
+  zip.file('leave-requests.csv', leaveCsv(leaveRequests, employees));
+  zip.file('payslips.json', JSON.stringify(payslips, null, 2));
+  zip.file('payslips.csv', payslipCsv(payslips, employees, branches));
+  zip.file('warnings.json', JSON.stringify(warnings, null, 2));
+  zip.file('warnings.csv', warningCsv(warnings, employees));
 
   const photoFolder = zip.folder('photos');
   const documentFolder = zip.folder('documents');
@@ -193,14 +279,9 @@ export async function createWorkspaceZip(employees: Employee[], groups: Group[],
       const noteName = uniqueName(`${safeDocName}.txt`, used);
       files.push({ kind: 'document-placeholder', employeeId: employee.id, documentId: doc.id, path: `documents/${person}/${noteName}` });
       folder.file(noteName, [
-        'PEOPLEFLOW DOCUMENT RECORD',
-        '',
+        'PEOPLEFLOW DOCUMENT RECORD', '',
         `Employee: ${employee.fullName} (${employee.employeeNumber})`,
-        `Document: ${doc.name}`,
-        `Type: ${doc.type}`,
-        `Added: ${doc.date}`,
-        `Size on record: ${doc.size}`,
-        '',
+        `Document: ${doc.name}`, `Type: ${doc.type}`, `Added: ${doc.date}`, `Size on record: ${doc.size}`, '',
         'No file contents were stored for this record in the workspace, so this',
         'note preserves its details instead. Upload or replace the document in',
         'Peopleflow to store the original file.',
@@ -208,14 +289,11 @@ export async function createWorkspaceZip(employees: Employee[], groups: Group[],
     });
   });
 
-  const documentsCreated = counts.documents > 0 || counts.photos > 0;
-  if (documentsCreated) {
-    contents.push('documents/', 'photos/');
-  }
+  if (counts.documents || counts.photos) contents.push('documents/', 'photos/');
 
   zip.file('manifest.json', JSON.stringify({
     app: 'Peopleflow HR',
-    formatVersion: 2,
+    formatVersion: 3,
     dataOnly: true,
     exportedAt,
     counts,
@@ -231,7 +309,7 @@ export async function createWorkspaceZip(employees: Employee[], groups: Group[],
   zip.file('README.txt', readme(counts, exportedAt));
 
   const blob = await zip.generateAsync({ type: 'blob', compression: 'DEFLATE', compressionOptions: { level: 6 } });
-  return { blob, fileName: `peopleflow-backup-${date}.zip`, counts };
+  return { blob, fileName: `peopleflow-backup-${stamp()}.zip`, counts };
 }
 
 /* ------------------------------------------------------------------ *
@@ -240,21 +318,31 @@ export async function createWorkspaceZip(employees: Employee[], groups: Group[],
 
 export interface WorkspaceImport {
   employees: Employee[];
-  groups: Group[];
+  branches: Branch[];
   customFields: CustomField[];
-  counts: { employees: number; groups: number; customFields: number; documents: number; photos: number };
-  warnings: string[];
-  /** Approximate size of the restored data, used to warn about browser storage limits. */
+  timeEntries: TimeEntry[];
+  leaveRequests: LeaveRequest[];
+  payslips: Payslip[];
+  warnings: Warning[];
+  counts: BackupCounts;
+  /** Import notes and skipped-record messages. */
+  notices: string[];
   bytes: number;
   source: 'zip' | 'json';
 }
 
 const text = (value: unknown, fallback = '') => (typeof value === 'string' ? value : typeof value === 'number' ? String(value) : fallback);
-const list = (value: unknown) => (Array.isArray(value) ? value : []);
-const record = (value: unknown): Record<string, unknown> => (value && typeof value === 'object' ? value as Record<string, unknown> : {});
+const list = (value: unknown): unknown[] => (Array.isArray(value) ? value : []);
+const record = (value: unknown): Record<string, unknown> => (value && typeof value === 'object' && !Array.isArray(value) ? value as Record<string, unknown> : {});
+const num = (value: unknown, fallback = 0) => (Number.isFinite(Number(value)) ? Number(value) : fallback);
+const bool = (value: unknown, fallback = false) => (typeof value === 'boolean' ? value : fallback);
 
 const STATUSES = new Set(['Active', 'On leave', 'Resigned', 'Terminated']);
 const EMPLOYMENT_TYPES = new Set(['Full-time', 'Part-time', 'Contract']);
+const LEAVE_TYPES = new Set(['Annual', 'Sick', 'Family responsibility', 'Unpaid', 'Maternity']);
+const LEAVE_STATUSES = new Set(['Pending', 'Approved', 'Declined']);
+const WARNING_CATEGORIES = new Set(['Attendance & time', 'Conduct', 'Duty related', 'Property', 'Substances', 'Custom']);
+const WARNING_SEVERITIES = new Set(['Verbal', 'Written', 'Final']);
 
 function normalizeDocument(raw: unknown): EmployeeDocument | null {
   const item = record(raw);
@@ -262,12 +350,9 @@ function normalizeDocument(raw: unknown): EmployeeDocument | null {
   if (!name) return null;
   const data = text(item.data);
   return {
-    id: text(item.id) || crypto.randomUUID(),
-    name,
-    type: text(item.type, 'Other'),
-    date: text(item.date, new Date().toISOString().slice(0, 10)),
-    size: text(item.size, '—'),
-    ...(data.startsWith('data:') ? { data } : {}),
+    id: text(item.id) || crypto.randomUUID(), name,
+    type: text(item.type, 'Other'), date: text(item.date, new Date().toISOString().slice(0, 10)),
+    size: text(item.size, '—'), ...(data.startsWith('data:') ? { data } : {}),
   };
 }
 
@@ -276,13 +361,9 @@ function normalizeHistory(raw: unknown): WorkEntry | null {
   const title = text(item.title).trim();
   if (!title) return null;
   return {
-    id: text(item.id) || crypto.randomUUID(),
-    title,
-    project: text(item.project),
-    description: text(item.description),
-    startDate: text(item.startDate),
-    endDate: text(item.endDate) || undefined,
-    document: text(item.document) || undefined,
+    id: text(item.id) || crypto.randomUUID(), title, project: text(item.project),
+    description: text(item.description), startDate: text(item.startDate),
+    endDate: text(item.endDate) || undefined, document: text(item.document) || undefined,
   };
 }
 
@@ -291,50 +372,38 @@ function normalizeEmployee(raw: unknown): Employee | null {
   const fullName = text(item.fullName).trim();
   if (!fullName) return null;
   const custom: Record<string, string> = {};
-  Object.entries(record(item.custom)).forEach(([key, value]) => { custom[key] = text(value); if (typeof value === 'number') custom[key] = String(value); });
+  Object.entries(record(item.custom)).forEach(([key, value]) => { custom[key] = text(value); });
   const status = text(item.status, 'Active');
   const employmentType = text(item.employmentType, 'Full-time');
+  const legacyGroups = list(item.groups).map(value => text(value)).filter(Boolean);
+  const branchId = text(item.branchId) || legacyGroups[0] || undefined;
   return {
-    id: text(item.id) || crypto.randomUUID(),
-    fullName,
-    idNumber: text(item.idNumber),
-    employeeNumber: text(item.employeeNumber),
-    dob: text(item.dob),
-    phone: text(item.phone),
-    email: text(item.email),
-    address: text(item.address),
-    emergencyName: text(item.emergencyName),
-    emergencyPhone: text(item.emergencyPhone),
-    jobTitle: text(item.jobTitle),
-    department: text(item.department),
-    manager: text(item.manager),
+    id: text(item.id) || crypto.randomUUID(), fullName,
+    idNumber: text(item.idNumber), employeeNumber: text(item.employeeNumber), dob: text(item.dob),
+    phone: text(item.phone), email: text(item.email), address: text(item.address),
+    emergencyName: text(item.emergencyName), emergencyPhone: text(item.emergencyPhone),
+    jobTitle: text(item.jobTitle), department: text(item.department), manager: text(item.manager),
     employmentType: (EMPLOYMENT_TYPES.has(employmentType) ? employmentType : 'Full-time') as Employee['employmentType'],
     startDate: text(item.startDate),
     status: (STATUSES.has(status) ? status : 'Active') as Employee['status'],
     endDate: text(item.endDate) || undefined,
     photo: text(item.photo) || undefined,
-    bio: text(item.bio),
-    skills: text(item.skills),
-    languages: text(item.languages),
-    custom,
-    groups: list(item.groups).map(id => text(id)).filter(Boolean),
+    bio: text(item.bio), skills: text(item.skills), languages: text(item.languages), custom,
+    branchId,
+    monthlySalary: num(item.monthlySalary, 0),
     workHistory: list(item.workHistory).map(normalizeHistory).filter((entry): entry is WorkEntry => Boolean(entry)),
     documents: list(item.documents).map(normalizeDocument).filter((doc): doc is EmployeeDocument => Boolean(doc)),
     lastUpdated: text(item.lastUpdated, new Date().toISOString()),
   };
 }
 
-function normalizeGroup(raw: unknown): Group | null {
+function normalizeBranch(raw: unknown): Branch | null {
   const item = record(raw);
   const name = text(item.name).trim();
   if (!name) return null;
   return {
-    id: text(item.id) || crypto.randomUUID(),
-    name,
-    description: text(item.description),
-    lead: text(item.lead),
-    parentId: text(item.parentId) || undefined,
-    color: text(item.color, '#6d5bd0'),
+    id: text(item.id) || crypto.randomUUID(), name,
+    description: text(item.description), lead: text(item.lead), color: text(item.color, '#6d5bd0'),
   };
 }
 
@@ -343,45 +412,116 @@ function normalizeField(raw: unknown): CustomField | null {
   const label = text(item.label).trim();
   if (!label) return null;
   const type = text(item.type, 'Text');
+  return { id: text(item.id) || crypto.randomUUID(), label, type: (['Text', 'Date', 'Number'].includes(type) ? type : 'Text') as CustomField['type'] };
+}
+
+function normalizeTimeEntry(raw: unknown): TimeEntry | null {
+  const item = record(raw);
+  const employeeId = text(item.employeeId);
+  const date = text(item.date);
+  const clockIn = text(item.clockIn);
+  if (!employeeId || !date || !clockIn) return null;
   return {
-    id: text(item.id) || crypto.randomUUID(),
-    label,
-    type: (['Text', 'Date', 'Number'].includes(type) ? type : 'Text') as CustomField['type'],
+    id: text(item.id) || crypto.randomUUID(), employeeId, date, clockIn,
+    clockOut: text(item.clockOut) || undefined,
+    breakMinutes: Math.max(0, num(item.breakMinutes, 0)),
+    notes: text(item.notes),
+    approved: bool(item.approved),
+    source: text(item.source) === 'Clock' ? 'Clock' : 'Manual',
   };
 }
 
-function parseData(raw: unknown): { employees: Employee[]; groups: Group[]; customFields: CustomField[]; warnings: string[] } {
-  const data = Array.isArray(raw) ? { employees: raw, groups: [], customFields: [] } : record(raw);
-  const employeeList = list(data.employees).map(normalizeEmployee).filter((employee): employee is Employee => Boolean(employee));
-  if (!list(data.employees).length && !employeeList.length && !Array.isArray(data.employees)) {
+function normalizeLeave(raw: unknown): LeaveRequest | null {
+  const item = record(raw);
+  const employeeId = text(item.employeeId);
+  const startDate = text(item.startDate);
+  const endDate = text(item.endDate, startDate);
+  if (!employeeId || !startDate) return null;
+  const type = text(item.type, 'Annual');
+  const status = text(item.status, 'Pending');
+  return {
+    id: text(item.id) || crypto.randomUUID(), employeeId,
+    type: (LEAVE_TYPES.has(type) ? type : 'Annual') as LeaveType,
+    startDate, endDate,
+    days: Math.max(1, num(item.days, 1)),
+    reason: text(item.reason),
+    status: (LEAVE_STATUSES.has(status) ? status : 'Pending') as LeaveStatus,
+    requestedAt: text(item.requestedAt, new Date().toISOString()),
+  };
+}
+
+function normalizePayslip(raw: unknown): Payslip | null {
+  const item = record(raw);
+  const employeeId = text(item.employeeId);
+  const period = text(item.period);
+  if (!employeeId || !period) return null;
+  const gross = round(num(item.gross));
+  const paye = round(num(item.paye));
+  const uifEmployee = round(num(item.uifEmployee));
+  const deductions = round(num(item.deductions));
+  const includeUif = bool(item.includeUif, uifEmployee > 0);
+  return {
+    id: text(item.id) || crypto.randomUUID(), employeeId, period,
+    payDate: text(item.payDate, `${period}-01`),
+    gross, overtime: round(num(item.overtime)), allowances: round(num(item.allowances)),
+    deductions, paye, uifEmployee,
+    uifEmployer: round(num(item.uifEmployer, uifEmployee)),
+    includeUif,
+    net: round(num(item.net, gross - paye - uifEmployee - deductions)),
+    notes: text(item.notes), createdAt: text(item.createdAt, new Date().toISOString()),
+  };
+}
+
+function normalizeWarning(raw: unknown): Warning | null {
+  const item = record(raw);
+  const employeeId = text(item.employeeId);
+  if (!employeeId) return null;
+  const category = text(item.category, 'Custom');
+  const severity = text(item.severity, 'Verbal');
+  return {
+    id: text(item.id) || crypto.randomUUID(), employeeId,
+    category: (WARNING_CATEGORIES.has(category) ? category : 'Custom') as WarningCategory,
+    customCategory: (WARNING_CATEGORIES.has(category) ? text(item.customCategory) : text(item.customCategory, category)) || undefined,
+    severity: (WARNING_SEVERITIES.has(severity) ? severity : 'Verbal') as WarningSeverity,
+    issuedDate: text(item.issuedDate, new Date().toISOString().slice(0, 10)),
+    details: text(item.details), issuedBy: text(item.issuedBy), acknowledged: bool(item.acknowledged),
+  };
+}
+
+function parseData(raw: unknown) {
+  const data = Array.isArray(raw) ? { employees: raw } : record(raw);
+  const rawEmployees = list(data.employees);
+  if (rawEmployees.length === 0 && data.employees !== undefined && !Array.isArray(data.employees)) {
     throw new Error('This backup does not contain employee data.');
   }
-  const dropped = list(data.employees).length - employeeList.length;
-  const warnings: string[] = [];
-  if (dropped > 0) warnings.push(`${dropped} incomplete employee record${dropped === 1 ? '' : 's'} were skipped.`);
-  return {
-    employees: employeeList,
-    groups: list(data.groups).map(normalizeGroup).filter((group): group is Group => Boolean(group)),
-    customFields: list(data.customFields).map(normalizeField).filter((field): field is CustomField => Boolean(field)),
-    warnings,
-  };
+  const employees = rawEmployees.map(normalizeEmployee).filter((employee): employee is Employee => Boolean(employee));
+  const employeeIds = new Set(employees.map(employee => employee.id));
+  const branches = list(data.branches ?? data.groups).map(normalizeBranch).filter((branch): branch is Branch => Boolean(branch));
+  const customFields = list(data.customFields).map(normalizeField).filter((field): field is CustomField => Boolean(field));
+  const timeEntries = list(data.timeEntries).map(normalizeTimeEntry).filter((entry): entry is TimeEntry => Boolean(entry)).filter(entry => employeeIds.has(entry.employeeId));
+  const leaveRequests = list(data.leaveRequests).map(normalizeLeave).filter((request): request is LeaveRequest => Boolean(request)).filter(request => employeeIds.has(request.employeeId));
+  const payslips = list(data.payslips).map(normalizePayslip).filter((slip): slip is Payslip => Boolean(slip)).filter(slip => employeeIds.has(slip.employeeId));
+  const warnings = list(data.warnings).map(normalizeWarning).filter((warning): warning is Warning => Boolean(warning)).filter(warning => employeeIds.has(warning.employeeId));
+  const dropped = rawEmployees.length - employees.length;
+  const notices: string[] = [];
+  if (dropped > 0) notices.push(`${dropped} incomplete employee record${dropped === 1 ? '' : 's'} were skipped.`);
+  return { employees, branches, customFields, timeEntries, leaveRequests, payslips, warnings, notices };
 }
 
-const MIME_BY_EXTENSION: Record<string, string> = {
-  pdf: 'application/pdf', png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg', gif: 'image/gif', webp: 'image/webp',
-  txt: 'text/plain', csv: 'text/csv', doc: 'application/msword',
-  docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-  xls: 'application/vnd.ms-excel', xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-};
+const summarize = (data: Omit<WorkspaceImport, 'counts' | 'notices' | 'bytes' | 'source'>): BackupCounts => ({
+  employees: data.employees.length,
+  branches: data.branches.length,
+  customFields: data.customFields.length,
+  documents: data.employees.reduce((total, employee) => total + employee.documents.filter(doc => doc.data).length, 0),
+  photos: data.employees.filter(employee => employee.photo).length,
+  timeEntries: data.timeEntries.length,
+  leaveRequests: data.leaveRequests.length,
+  payslips: data.payslips.length,
+  warnings: data.warnings.length,
+});
 
-const mimeFor = (path: string) => MIME_BY_EXTENSION[path.split('.').pop()?.toLowerCase() || ''] || 'application/octet-stream';
-const baseName = (path: string) => path.split('/').pop() || path;
-const comparable = (name: string) => baseName(name)
-  .toLowerCase()
-  .replace(/\.[a-z0-9]{1,5}$/i, '')
-  .replace(/\(\d+\)$/, '')
-  .replace(/[^a-z0-9]+/g, ' ')
-  .trim();
+const sizeOf = (data: { employees: Employee[] }) =>
+  data.employees.reduce((total, employee) => total + (employee.photo?.length || 0) + employee.documents.reduce((sum, doc) => sum + (doc.data?.length || 0), 0), 0);
 
 async function dataUrlFor(entry: JSZip.JSZipObject, path: string) {
   const base64 = await entry.async('base64');
@@ -405,12 +545,15 @@ export async function readWorkspaceBackup(file: File): Promise<WorkspaceImport> 
   if (!file.size) throw new Error('That file is empty.');
   const looksJson = /\.json$/i.test(file.name) || file.type === 'application/json';
 
+  const fromJson = async (raw: unknown, source: 'zip' | 'json'): Promise<WorkspaceImport> => {
+    const parsed = parseData(raw);
+    return { ...parsed, counts: summarize(parsed), bytes: sizeOf(parsed), source };
+  };
+
   if (looksJson) {
     let parsed: unknown;
     try { parsed = JSON.parse(await file.text()); } catch { throw new Error('That JSON file could not be read as a backup.'); }
-    const { employees, groups, customFields, warnings } = parseData(parsed);
-    const bytes = employees.reduce((total, employee) => total + (employee.photo?.length || 0) + employee.documents.reduce((sum, doc) => sum + (doc.data?.length || 0), 0), 0);
-    return { employees, groups, customFields, counts: summarize(employees, groups, customFields), warnings, bytes, source: 'json' };
+    return fromJson(parsed, 'json');
   }
 
   let zip: JSZip;
@@ -421,9 +564,7 @@ export async function readWorkspaceBackup(file: File): Promise<WorkspaceImport> 
     try { parsed = JSON.parse(await file.text()); } catch {
       throw new Error('That file is not a Peopleflow backup. Choose the .zip file created by Export → Full backup.');
     }
-    const { employees, groups, customFields, warnings } = parseData(parsed);
-    const bytes = employees.reduce((total, employee) => total + (employee.photo?.length || 0) + employee.documents.reduce((sum, doc) => sum + (doc.data?.length || 0), 0), 0);
-    return { employees, groups, customFields, counts: summarize(employees, groups, customFields), warnings, bytes, source: 'json' };
+    return fromJson(parsed, 'json');
   }
 
   const entries = new Map<string, JSZip.JSZipObject>();
@@ -434,36 +575,35 @@ export async function readWorkspaceBackup(file: File): Promise<WorkspaceImport> 
     for (const [path, entry] of entries) if (path.endsWith(`/${name.toLowerCase()}`)) return entry;
     return undefined;
   };
-
-  const employeeEntry = find('employees.json');
-  if (!employeeEntry) {
-    const legacy = find('peopleflow-backup.json');
-    if (!legacy) throw new Error('This ZIP has no employees.json, so it is not a Peopleflow backup.');
-    let parsed: unknown;
-    try { parsed = JSON.parse(await legacy.async('string')); } catch { throw new Error('The employee data inside this ZIP could not be read.'); }
-    const { employees, groups, customFields, warnings } = parseData(parsed);
-    return { employees, groups, customFields, counts: summarize(employees, groups, customFields), warnings, bytes: 0, source: 'zip' };
-  }
-
-  let rawEmployees: unknown;
-  try { rawEmployees = JSON.parse(await employeeEntry.async('string')); } catch { throw new Error('The employee data inside this ZIP could not be read.'); }
-  const groupsEntry = find('groups.json');
-  const fieldsEntry = find('custom-fields.json');
-  const readJson = async (entry?: JSZip.JSZipObject) => {
+  const readJson = async (name: string) => {
+    const entry = find(name);
     if (!entry) return undefined;
     try { return JSON.parse(await entry.async('string')); } catch { return undefined; }
   };
-  const { employees, groups, customFields, warnings } = parseData({
-    employees: rawEmployees,
-    groups: await readJson(groupsEntry) ?? [],
-    customFields: await readJson(fieldsEntry) ?? [],
+
+  const employeeEntry = find('employees.json');
+  if (!employeeEntry) {
+    const legacy = await readJson('peopleflow-backup.json');
+    if (!legacy) throw new Error('This ZIP has no employees.json, so it is not a Peopleflow backup.');
+    return fromJson(legacy, 'zip');
+  }
+
+  let employeesRaw: unknown;
+  try { employeesRaw = JSON.parse(await employeeEntry.async('string')); } catch { throw new Error('The employee data inside this ZIP could not be read.'); }
+
+  const parsed = parseData({
+    employees: employeesRaw,
+    branches: await readJson('branches.json') ?? await readJson('groups.json') ?? [],
+    customFields: await readJson('custom-fields.json') ?? [],
+    timeEntries: await readJson('timesheets.json') ?? await readJson('time-entries.json') ?? [],
+    leaveRequests: await readJson('leave-requests.json') ?? [],
+    payslips: await readJson('payslips.json') ?? [],
+    warnings: await readJson('warnings.json') ?? [],
   });
 
   let manifest: Record<string, unknown> | undefined;
-  const manifestEntry = find('manifest.json');
-  if (manifestEntry) {
-    try { manifest = record(JSON.parse(await manifestEntry.async('string'))); } catch { manifest = undefined; }
-  }
+  const manifestRaw = await readJson('manifest.json');
+  if (manifestRaw) manifest = record(manifestRaw);
 
   const fileRefs = list(manifest?.files).map(record);
   const photosByEmployee = new Map<string, JSZip.JSZipObject>();
@@ -472,14 +612,12 @@ export async function readWorkspaceBackup(file: File): Promise<WorkspaceImport> 
     const employeeId = text(ref.employeeId);
     const path = text(ref.path);
     if (!employeeId || !path) return;
-    if (ref.kind === 'photo') {
-      const entry = entries.get(path.toLowerCase());
-      if (entry) photosByEmployee.set(employeeId, entry);
-    }
+    const entry = entries.get(path.toLowerCase());
+    if (!entry) return;
+    if (ref.kind === 'photo') photosByEmployee.set(employeeId, entry);
     if (ref.kind === 'document') {
       const documentId = text(ref.documentId);
-      const entry = entries.get(path.toLowerCase());
-      if (documentId && entry) documentsByKey.set(`${employeeId}:${documentId}`, entry);
+      if (documentId) documentsByKey.set(`${employeeId}:${documentId}`, entry);
     }
   });
 
@@ -489,12 +627,12 @@ export async function readWorkspaceBackup(file: File): Promise<WorkspaceImport> 
   const photoPaths = new Set<string>();
   const documentPaths = new Set<string>();
 
-  for (const employee of employees) {
+  for (const employee of parsed.employees) {
     let photoEntry = photosByEmployee.get(employee.id);
     if (!photoEntry) {
-      const folderPrefix = `photos/${safeName(employee.fullName).toLowerCase()}`;
+      const prefix = `photos/${safeName(employee.fullName).toLowerCase()}`;
       for (const [path, entry] of entries) {
-        if (path.startsWith(folderPrefix) && !photoPaths.has(path)) { photoEntry = entry; break; }
+        if (path.startsWith(prefix) && !photoPaths.has(path)) { photoEntry = entry; break; }
       }
     }
     if (photoEntry) {
@@ -509,9 +647,7 @@ export async function readWorkspaceBackup(file: File): Promise<WorkspaceImport> 
     for (const doc of employee.documents) {
       let entry = documentsByKey.get(`${employee.id}:${doc.id}`);
       if (!entry) entry = matchInFolder(entries, folderPrefix, doc.name);
-      if (!entry) { missingFiles += 1; continue; }
-      if (documentPaths.has(entry.name.toLowerCase())) { missingFiles += 1; continue; }
-      if (/\.txt$/i.test(entry.name) && !/\.txt$/i.test(doc.name)) { missingFiles += 1; continue; }
+      if (!entry || documentPaths.has(entry.name.toLowerCase()) || (/\.txt$/i.test(entry.name) && !/\.txt$/i.test(doc.name))) { missingFiles += 1; continue; }
       documentPaths.add(entry.name.toLowerCase());
       const { dataUrl, bytes: size } = await dataUrlFor(entry, entry.name);
       doc.data = dataUrl;
@@ -520,19 +656,10 @@ export async function readWorkspaceBackup(file: File): Promise<WorkspaceImport> 
     }
   }
 
-  const counts = summarize(employees, groups, customFields);
-  if (missingFiles > 0) warnings.push(`${missingFiles} document record${missingFiles === 1 ? '' : 's'} will keep ${missingFiles === 1 ? 'its' : 'their'} details only — no stored file was included.`);
-  if (!restoredFiles) warnings.push('No stored documents or photos were found in this ZIP.');
+  const importNotes = [...parsed.notices];
+  if (missingFiles > 0) importNotes.push(`${missingFiles} document record${missingFiles === 1 ? '' : 's'} will keep ${missingFiles === 1 ? 'its' : 'their'} details only — no stored file was included.`);
+  if (parsed.employees.length && !restoredFiles) importNotes.push('No stored documents or photos were found in this ZIP.');
 
-  return { employees, groups, customFields, counts, warnings, bytes, source: 'zip' };
-}
-
-function summarize(employees: Employee[], groups: Group[], customFields: CustomField[]): WorkspaceImport['counts'] {
-  return {
-    employees: employees.length,
-    groups: groups.length,
-    customFields: customFields.length,
-    documents: employees.reduce((total, employee) => total + employee.documents.filter(doc => doc.data).length, 0),
-    photos: employees.filter(employee => employee.photo).length,
-  };
+  const data = { employees: parsed.employees, branches: parsed.branches, customFields: parsed.customFields, timeEntries: parsed.timeEntries, leaveRequests: parsed.leaveRequests, payslips: parsed.payslips, warnings: parsed.warnings };
+  return { ...data, counts: summarize(data), notices: importNotes, bytes, source: 'zip' };
 }

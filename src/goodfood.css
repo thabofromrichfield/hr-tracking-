@@ -83,4 +83,92 @@ body{background:radial-gradient(circle at 8% 8%,rgba(167,180,255,.34),transparen
 @media(max-width:1120px){.topbar-actions .btn{padding:0 10px}.topbar-actions .btn-secondary span{display:none}.topbar-actions .btn-secondary{width:36px;padding:0}.global-search{width:210px}}
 @media(max-width:760px){.topbar-actions .btn span{display:none}.topbar-actions .btn{width:36px;padding:0}.topbar-actions{gap:6px}}
 @media(max-width:640px){.topbar-actions{order:4}.topbar-actions .btn{height:36px}.modal-backdrop{padding:10px;height:100dvh}.modal{max-height:calc(100dvh - 20px)}.modal-body{max-height:none}.gf-page-heading .heading-actions{display:none}}
+/* HR modules: timesheets, attendance, leave, payslips, warnings, branches */
+.sidebar{overflow-y:auto;scrollbar-width:thin}
+.hr-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:18px}
+.hr-stats>div{display:flex;align-items:center;gap:12px;background:#fff;border:1px solid rgba(226,231,240,.95);border-radius:12px;padding:15px 16px;box-shadow:5px 5px 14px rgba(184,193,211,.22),-4px -4px 12px rgba(255,255,255,.7)}
+.hr-stat-icon{width:38px;height:38px;border-radius:10px;display:grid;place-items:center;flex:0 0 auto;background:linear-gradient(145deg,#eef0ff,#e3e8f8);color:#5B6CF9}
+.hr-stat-icon.green{background:linear-gradient(145deg,#e7f6ee,#dcefe3);color:#1f9d63}
+.hr-stat-icon.amber{background:linear-gradient(145deg,#fdf3e3,#f7e9cf);color:#c4881f}
+.hr-stats small{display:block;font-size:9px;color:#8a94a3;text-transform:uppercase;letter-spacing:.4px;margin-bottom:3px}
+.hr-stats strong{font-size:14px;color:#3b4557}
+.week-toolbar{gap:16px;flex-wrap:wrap}
+.week-nav{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.week-nav>div{display:flex;flex-direction:column;min-width:150px}
+.week-nav strong{font-size:12px;color:#3b4557}
+.week-nav span{font-size:9px;color:#8b95a4;margin-top:2px}
+.week-nav input[type=date],.sort-select input[type=date],.sort-select input[type=month]{border:1px solid #e2e7f0;background:#fff;border-radius:8px;height:32px;padding:0 8px;font-size:10px;color:#4d5766;outline:none}
+.sort-select input[type=date],.sort-select input[type=month]{max-width:155px}
+.attendance-search{display:flex;align-items:center;gap:7px;height:32px;border:1px solid #e2e7f0;border-radius:8px;padding:0 10px;background:#fff;color:#94a0b0;min-width:190px}
+.attendance-search input{border:0;outline:0;background:none;font-size:10px;width:100%;color:#4d5766}
+.row-actions{display:flex;align-items:center;gap:3px;justify-content:flex-end}
+.row-actions .icon-btn{width:28px;height:28px}
+.approved-btn{color:#1f9d63!important;background:#eaf7f0!important}
+.approve-all{margin-left:auto}
+.muted-text{color:#9aa4b1;font-size:10px}
+.hours-preview{display:flex;align-items:center;gap:8px;background:linear-gradient(145deg,#eef0ff,#e6eafa);border-radius:9px;padding:10px 12px;margin-top:14px;color:#5B6CF9;font-size:10px}
+.hours-preview strong{margin-left:auto;font-size:13px;color:#3f4a5e}
+.form-error{color:#b4483a;font-size:10px;margin-top:10px;background:#fbf0ee;padding:8px 10px;border-radius:7px}
+.leave-tabs{display:flex;gap:4px;padding:12px 18px 0;border-bottom:1px solid #edf0f5}
+.leave-tabs button{position:relative;padding:8px 12px 11px;font-size:10px;color:#8b95a4;display:flex;align-items:center;gap:5px}
+.leave-tabs button.active{color:#5B6CF9;font-weight:650}
+.leave-tabs button.active:after{content:'';position:absolute;left:8px;right:8px;bottom:-1px;height:2px;background:#5B6CF9;border-radius:2px}
+.leave-tabs button>span{background:#eef0ff;color:#5B6CF9;font-size:8px;padding:1px 5px;border-radius:6px}
+.leave-reason{max-width:190px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:#7c8798}
+.warning-categories{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:14px}
+.warning-categories button{height:32px;padding:0 12px;border-radius:20px;background:#fff;border:1px solid #e5e9f1;font-size:10px;color:#6c7789;display:flex;align-items:center;gap:6px}
+.warning-categories button.active{background:#eef0ff;border-color:#c9d0fb;color:#4b5bd6;font-weight:600}
+.warning-categories span{font-size:8px;background:#f1f3f8;border-radius:6px;padding:1px 5px}
+.warning-categories button.active span{background:#dfe3ff;color:#4b5bd6}
+.warning-tag{font-size:9px;padding:4px 8px;border-radius:6px;background:#eef0f6;color:#5b6678;white-space:nowrap}
+.warning-tag.attendance-and-time{background:#eef0ff;color:#4b5bd6}
+.warning-tag.conduct{background:#fdeeee;color:#b4483a}
+.warning-tag.duty-related{background:#eef7f0;color:#2c7a4e}
+.warning-tag.property{background:#fbf3e5;color:#9a6a1f}
+.warning-tag.substances{background:#f3edfb;color:#7443b5}
+.warning-tag.custom{background:#e9f5fa;color:#2a7893}
+.ack-pill{display:inline-flex;align-items:center;gap:4px;font-size:9px;padding:5px 9px;border-radius:20px;background:#f6f1e3;color:#96713b;white-space:nowrap}
+.ack-pill.done{background:#eaf7f0;color:#227a52}
+.generate-summary{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:14px}
+.payslip-totals{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:14px}
+.payslip-totals>div,.generate-summary>div{background:linear-gradient(145deg,#f2f5fb,#e8edf5);border-radius:9px;padding:10px 11px}
+.payslip-totals span,.generate-summary span{display:block;font-size:8px;color:#8b95a4;text-transform:uppercase;letter-spacing:.4px}
+.payslip-totals strong,.generate-summary strong{font-size:12px;color:#3b4557;margin-top:3px;display:block}
+.generate-list{margin-top:14px;display:flex;flex-direction:column;gap:2px}
+.generate-list>div{display:flex;align-items:center;gap:9px;padding:6px 2px;border-bottom:1px solid #eff2f7;font-size:10px;color:#5b6678}
+.generate-list>div>span{flex:1}
+.toggle-row{display:flex;align-items:flex-start;gap:8px;font-size:10px;color:#6c7789;line-height:1.5;padding-top:6px}
+.toggle-row input{margin-top:2px;accent-color:#5B6CF9;width:15px;height:15px}
+.payslip-body{background:#eef1f7;padding:20px}
+.payslip-sheet{background:#fff;border-radius:12px;padding:26px;box-shadow:0 12px 32px rgba(45,55,80,.12);color:#3b4557}
+.payslip-head{display:flex;justify-content:space-between;gap:20px;border-bottom:2px solid #eef0f6;padding-bottom:16px}
+.payslip-brand{font-size:9px;letter-spacing:1.5px;text-transform:uppercase;color:#5B6CF9;font-weight:700}
+.payslip-head h2{font-size:22px;margin:4px 0 2px}
+.payslip-head p{font-size:10px;color:#8b95a4}
+.payslip-doc{text-align:right;display:flex;flex-direction:column}
+.payslip-doc span{font-size:8px;color:#9aa4b1;text-transform:uppercase;letter-spacing:.4px;margin-top:6px}
+.payslip-doc strong{font-size:11px}
+.payslip-person{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;padding:16px 0;border-bottom:1px solid #eef0f6}
+.payslip-person span{display:block;font-size:8px;color:#9aa4b1;text-transform:uppercase;letter-spacing:.4px;margin-bottom:3px}
+.payslip-person strong{font-size:11px}
+.payslip-columns{display:grid;grid-template-columns:1fr 1fr;gap:26px;padding:18px 0}
+.payslip-columns h3{font-size:10px;text-transform:uppercase;letter-spacing:.6px;color:#8b95a4;margin-bottom:8px}
+.payslip-columns>div>div{display:flex;justify-content:space-between;padding:6px 0;font-size:10px;border-bottom:1px dashed #eef0f6}
+.payslip-row-total{font-weight:700;border-bottom:0!important;border-top:1px solid #e3e7ef;margin-top:4px;padding-top:9px!important}
+.payslip-net{display:flex;justify-content:space-between;align-items:center;background:linear-gradient(145deg,#eef0ff,#e4e8fa);border-radius:10px;padding:14px 16px}
+.payslip-net span{font-size:9px;text-transform:uppercase;letter-spacing:.6px;color:#5b6678;font-weight:600}
+.payslip-net small{display:block;font-size:8px;color:#8b95a4;margin-top:3px;letter-spacing:0;text-transform:none}
+.payslip-net strong{font-size:22px;color:#3b465e}
+.payslip-notes{font-size:9px;color:#7c8798;margin-top:12px;background:#f7f9fc;padding:9px 11px;border-radius:8px}
+.payslip-footnote{font-size:8px;color:#9aa4b1;line-height:1.7;margin-top:14px}
+.attendance-session-list{display:flex;flex-direction:column;margin-bottom:14px}
+.attendance-session-list>div{display:flex;align-items:center;justify-content:space-between;padding:9px 2px;border-bottom:1px solid #eff2f7}
+.attendance-session-list strong{font-size:11px;display:block}
+.attendance-session-list span{font-size:9px;color:#8b95a4}
+.attendance-form{border-top:1px solid #eef1f6;padding-top:14px}
+.attendance-form-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:12px}
+.import-breakdown{font-size:10px;color:#6c7789;background:#f5f7fc;border-radius:8px;padding:9px 11px;margin-bottom:12px;line-height:1.6}
+@media(max-width:1100px){.hr-stats{grid-template-columns:repeat(2,1fr)}.payslip-columns{gap:18px}}
+@media(max-width:640px){.hr-stats{grid-template-columns:1fr 1fr}.week-nav{flex-wrap:wrap}.payslip-body{padding:10px}.payslip-sheet{padding:16px}.payslip-person{grid-template-columns:1fr 1fr}.payslip-columns{grid-template-columns:1fr}.generate-summary{grid-template-columns:1fr 1fr}.payslip-totals{grid-template-columns:1fr 1fr}.warning-categories{overflow-x:auto;flex-wrap:nowrap}}
+@media print{body.payslip-open *{visibility:hidden}body.payslip-open .payslip-sheet,body.payslip-open .payslip-sheet *{visibility:visible}body.payslip-open .payslip-sheet{position:absolute;left:0;top:0;width:100%;box-shadow:none;padding:0}body.payslip-open .modal-backdrop{position:static;background:none;padding:0}body.payslip-open .modal{box-shadow:none;background:#fff;border:0;max-height:none}body.payslip-open .modal-head,body.payslip-open .modal-footer{display:none!important}}
 @media print{body{padding:0}.app-shell{display:block;border:0;box-shadow:none}.gf-metrics-grid,.gf-bottom-grid{display:grid;grid-template-columns:repeat(2,1fr)}.topbar{display:none}.card,.gf-card{animation:none;transform:none}}

@@ -1,11 +1,11 @@
 import { ChangeEvent, FormEvent, useEffect, useRef, useState } from 'react';
 import { ArrowLeft, BriefcaseBusiness, CalendarDays, Check, ChevronRight, Download, Eye, EyeOff, File, FilePlus2, FileText, FolderOpen, Mail, MapPin, MoreHorizontal, Pencil, Phone, Plus, ShieldCheck, Trash2, Upload, UserRound, UsersRound, X } from 'lucide-react';
 import { Avatar, Modal, PageBack, StatusBadge, formatDate, yearsAtCompany } from './components';
-import { CustomField, Employee, EmployeeDocument, Group, Status, WorkEntry } from './types';
+import { Branch, CustomField, Employee, EmployeeDocument, Status, WorkEntry } from './types';
 
-export default function Profile({ employee, groups, customFields, onBack, onEdit, onUpdate, onGroup, notify }: {
-  employee: Employee; groups: Group[]; customFields: CustomField[]; onBack: () => void; onEdit: () => void;
-  onUpdate: (employee: Employee, message: string) => void; onGroup: (id: string) => void; notify: (message: string) => void;
+export default function Profile({ employee, branches, customFields, onBack, onEdit, onUpdate, onBranch, notify }: {
+  employee: Employee; branches: Branch[]; customFields: CustomField[]; onBack: () => void; onEdit: () => void;
+  onUpdate: (employee: Employee, message: string) => void; onBranch: () => void; notify: (message: string) => void;
 }) {
   const [tab, setTab] = useState<'overview' | 'history' | 'documents'>('overview');
   const [showId, setShowId] = useState(false);
@@ -44,7 +44,7 @@ export default function Profile({ employee, groups, customFields, onBack, onEdit
       </div>
       <aside className="profile-aside">
         <section className="card detail-card"><div className="card-title"><h2>Employment</h2></div><div className="employment-list"><Detail label="Department" value={employee.department} /><Detail label="Reports to" value={employee.manager} /><Detail label="Employment type" value={employee.employmentType} /><Detail label="Current status" value={<StatusBadge status={employee.status} />} /><Detail label="Start date" value={formatDate(employee.startDate, true)} />{employee.endDate && <Detail label="End date" value={formatDate(employee.endDate, true)} />}</div></section>
-        <section className="card detail-card"><div className="card-title"><h2>Groups</h2><span className="count-pill">{employee.groups.length}</span></div><div className="profile-groups">{employee.groups.map(id => groups.find(g => g.id === id)).filter(Boolean).map(group => <button key={group!.id} onClick={() => onGroup(group!.id)}><span className="group-dot" style={{ background: group!.color }} /><span>{group!.name}</span><ChevronRight size={15} /></button>)}{!employee.groups.length && <p className="muted small">Not a member of any groups.</p>}</div></section>
+        <section className="card detail-card"><div className="card-title"><h2>Branch</h2></div><div className="profile-groups">{(() => { const branch = branches.find(item => item.id === employee.branchId); return branch ? <button onClick={onBranch}><span className="group-dot" style={{ background: branch.color }} /><span>{branch.name}</span><ChevronRight size={15} /></button> : <p className="muted small">Not assigned to a branch yet.</p>; })()}</div></section>
         <div className="last-updated"><Check size={14} />Last updated {new Date(employee.lastUpdated).toLocaleDateString('en-ZA', { day: 'numeric', month: 'short', year: 'numeric' })}</div>
       </aside>
     </div>}
