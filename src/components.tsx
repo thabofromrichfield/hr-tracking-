@@ -1,7 +1,7 @@
 import { ReactNode, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { ChevronLeft, Download, Search, X } from 'lucide-react';
-import { Employee, Status } from './types';
+import { Branch, Employee, Status } from './types';
 
 export const colors = ['#e5eee7', '#eee8df', '#e7e9f2', '#f2e5e2', '#e3eeee', '#ede8f3', '#e9eddf', '#f1e8df', '#e2eaf1', '#eee4e8'];
 export const inkColors = ['#31634d', '#8a5e2d', '#505b8d', '#94594f', '#397278', '#6a5289', '#5e7135', '#91613b', '#426784', '#87546b'];
@@ -41,12 +41,12 @@ export function PageBack({ onClick, children = 'Back' }: { onClick: () => void; 
   return <button className="back-link" onClick={onClick}><ChevronLeft size={17} />{children}</button>;
 }
 
-export function EmployeeTable({ employees, onOpen, showDepartment = true, compact = false }: { employees: Employee[]; onOpen: (id: string) => void; showDepartment?: boolean; compact?: boolean }) {
-  return <div className="table-scroll"><table className="employee-table"><thead><tr><th>Employee</th>{!compact && <th>Employee no.</th>}{showDepartment && <th>Department</th>}{!compact && <th>Employment</th>}<th>Status</th>{!compact && <th>Start date</th>}<th /></tr></thead>
+export function EmployeeTable({ employees, onOpen, showDepartment = true, compact = false, branches }: { employees: Employee[]; onOpen: (id: string) => void; showDepartment?: boolean; compact?: boolean; branches?: Branch[] }) {
+  return <div className="table-scroll"><table className="employee-table"><thead><tr><th>Employee</th>{!compact && <th>Employee no.</th>}{showDepartment && <th>Department</th>}{branches && <th>Branch</th>}{!compact && <th>Employment</th>}<th>Status</th>{!compact && <th>Start date</th>}<th /></tr></thead>
     <tbody>{employees.map(employee => <tr key={employee.id} onClick={() => onOpen(employee.id)}>
       <td><div className="person-cell"><Avatar employee={employee} /><div><strong>{employee.fullName}</strong><span>{employee.jobTitle}</span></div></div></td>
       {!compact && <td className="muted mono">{employee.employeeNumber}</td>}
-      {showDepartment && <td>{employee.department}</td>}
+      {showDepartment && <td>{employee.department}</td>}{branches && <td>{branches.find(branch => branch.id === employee.branchId)?.name || '—'}</td>}
       {!compact && <td>{employee.employmentType}</td>}<td><StatusBadge status={employee.status} /></td>
       {!compact && <td className="muted">{formatDate(employee.startDate)}</td>}<td><button className="row-open" aria-label={`Open ${employee.fullName}`}>→</button></td>
     </tr>)}</tbody></table>{employees.length === 0 && <div className="empty-table"><Search size={28} /><h3>No employees found</h3><p>Try changing your search or filters.</p></div>}</div>;

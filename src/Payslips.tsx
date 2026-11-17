@@ -7,7 +7,8 @@ import { UIF_MONTHLY_CAP, downloadFile, monthKey, monthLabel, toCsv, uifContribu
 const round = (value: number) => Math.round((Number(value) || 0) * 100) / 100;
 const lastDayOf = (period: string) => {
   const [year, month] = period.split('-').map(Number);
-  return new Date(year, month, 0).toISOString().slice(0, 10);
+  const date = new Date(year, month, 0);
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
 };
 
 export default function Payslips({ employees, branches, payslips, onGenerate, onUpdate, onDelete, notify }: {
