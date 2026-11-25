@@ -1,35 +1,25 @@
-# Design Contract — Peopleflow HR Authentication & Ephemeral Workspace Gate
+# Design Contract — Peopleflow Invite-Only Authentication & User Onboarding
 
-- **Target surface**: `src/AuthScreen.tsx`, `src/App.tsx`, `src/Settings.tsx`, `src/Warnings.tsx`
-- **Design specialists applied**:
-  - `.agents/agency-agents/design/design-ux-architect.md`
-  - `.agents/agency-agents/design/design-ui-designer.md`
-  - `.agents/agency-agents/design/design-inclusive-visuals-specialist.md`
-  - `.agents/agency-agents/design/design-ui-finish-gate-reviewer.md`
-- **Engineering & Security specialists applied**:
-  - `.agents/agency-agents/engineering/engineering-identity-access-engineer.md`
-  - `.agents/agency-agents/engineering/engineering-frontend-developer.md`
-  - `.agents/agency-agents/engineering/engineering-section-508-specialist.md`
-  - `.agents/agency-agents/security/security-appsec-engineer.md`
-  - `.agents/agency-agents/security/security-ai-generated-code-auditor.md`
-  - `.agents/agency-agents/security/security-secrets-credential-engineer.md`
+- **Target surfaces**:
+  - `src/AuthScreen.tsx` (strict Email + Password login screen)
+  - `src/AddUser.tsx` (dashboard Add user invitation & workspace directory page)
+  - `src/AccountSetup.tsx` (dashboard profile details & password setup page)
+  - `supabase/functions/invite-user/index.ts` (server-side single-use verification link issuer)
+- **Specialists applied**:
+  - Design: `design-ux-architect.md`, `design-ui-designer.md`, `design-ui-finish-gate-reviewer.md`
+  - Engineering: `engineering-identity-access-engineer.md`, `engineering-backend-architect.md`, `engineering-frontend-developer.md`, `engineering-section-508-specialist.md`
+  - Security: `security-appsec-engineer.md`, `security-ai-generated-code-auditor.md`, `security-secrets-credential-engineer.md`
 
-## 1. Visual Direction & Palette
-- **Aesthetic**: Harmonised with the Peopleflow HR Goodfood/Plus Jakarta Sans light glassmorphic system (`#EEF0F6` ambient canvas, frosted white `.lock-card`, `#5B6CF9` royal indigo primary CTA, `#4b6d50` sage security emblem, inset `#eef1f7` form inputs).
-- **Zero hardcoded persona**: Removed `LockScreen`, `Sarah Ndlovu`, `SN`, `sarah@peopleflow.co.za`, and `ayesha.patel@peopleflow.co.za` across `src/App.tsx`, `src/Settings.tsx`, and `src/Warnings.tsx`.
+## 1. Strict Login Surface (`src/AuthScreen.tsx`)
+- Prompts **only** Work Email and Password (`supabase.auth.signInWithPassword`).
+- Zero Email OTP, zero Number OTP, zero Magic Link, zero Recovery bypass, and zero public Sign-Up.
 
-## 2. Authentication Architecture & Security Invariants
-- **Existing users only**: Every OTP call sets `shouldCreateUser: false`. No public sign-up endpoint or UI exists (`auth.users` modified only via Supabase Studio / admin provisioning).
-- **Three sign-in methods**:
-  1. **Email & Password** (`signInWithPassword({ email, password })` + password reset link flow).
-  2. **Email OTP** (`signInWithOtp({ email, options: { shouldCreateUser: false } })` + `verifyOtp({ email, token, type: 'email' })`).
-  3. **Number OTP** (`signInWithOtp({ phone, options: { shouldCreateUser: false } })` + `verifyOtp({ phone, token, type: 'sms' })`, E.164 normalized with `+27` South Africa default).
-- **Verified session & RBAC**: Every sign-in calls `supabase.auth.getUser()` to confirm live user + `email_confirmed_at || phone_confirmed_at` before unlocking workspace; role derives strictly from `app_metadata.role` (never `user_metadata`).
-- **Zero session persistence across reloads**:
-  - Supabase client configured with `persistSession: false`, `autoRefreshToken: false`, `detectSessionInUrl: false`.
-  - `clearPersistedAuthArtifacts()` purges `sb-*` and `pf_*` keys from `localStorage`, `sessionStorage`, and `document.cookie` at startup and sign-out while preserving `peopleflow-*` HR records.
-  - `authUser` lives strictly in React state (`useState<AuthenticatedUser | null>(null)`), guaranteeing every page reload requires fresh authentication.
+## 2. Invite-Only User Provisioning (`src/AddUser.tsx` + `invite-user` Edge Function)
+- Supabase GoTrue hardened with `disable_signup: true`, `external_phone_enabled: false`, `mailer_autoconfirm: false`, and `mailer_otp_exp: 3600` (60-minute expiry).
+- Authenticated dashboard users open **Add user**, enter the new colleague's email, and click **Send verification link**.
+- Edge Function `invite-user` verifies the caller's live JWT against GoTrue, blocks un-onboarded callers, validates redirect origin against a strict allowlist (CWE-601), invokes `auth.admin.inviteUserByEmail`, and records `invite_expires_at` (`+60m`) + `password_set: false` in RLS-protected `public.workspace_users`.
 
-## 3. Accessibility & Finish Gate Checklist
-- Semantic `<label htmlFor>` + `id`, ARIA `role="tablist"` / `role="tab"` / `role="tabpanel"` with Left/Right/Home/End keyboard navigation, `aria-live` status banners, `inputMode="numeric"` + `autoComplete="one-time-code"` for OTP inputs, and `2.5px` `#5B6CF9` `:focus-visible` outlines.
-- Verified responsive geometry across `390px` mobile and `1440px` desktop viewports with zero horizontal overflow.
+## 3. Single-Use Verification Link & Onboarding (`src/AccountSetup.tsx`)
+- Clicking the verification link consumes the GoTrue invite token once, strips URL hash/query immediately (`history.replaceState`), stamps `invite_used_at` on `public.workspace_users` so the link can never be replayed, and opens **Complete your profile & set password** inside the dashboard.
+- Invited users edit their details (`full_name`, `job_title`, `department`, `phone`) and set their own password before navigating elsewhere in the dashboard.
+- Ephemeral sessions (`persistSession: false` + `clearPersistedAuthArtifacts()`) ensure reloading the page always signs out and requires Email + Password.

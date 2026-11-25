@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { AlertTriangle, Bell, Building2, CalendarCheck, CalendarDays, Check, ChevronDown, ChevronRight, CircleHelp, Cloud, Clock, Download, FileArchive, FileSpreadsheet, FileText, LayoutDashboard, LogOut, Menu, Plus, Receipt, Search, Settings, ShieldAlert, Upload, UserRound, UsersRound, X } from 'lucide-react';
+import { AlertTriangle, Bell, Building2, CalendarCheck, CalendarDays, Check, ChevronDown, ChevronRight, CircleHelp, Cloud, Clock, Download, FileArchive, FileSpreadsheet, FileText, LayoutDashboard, LogOut, Menu, Plus, Receipt, Search, Settings, ShieldAlert, Upload, UserCog, UserPlus, UserRound, UsersRound, X } from 'lucide-react';
 import { initialBranches, initialCustomFields, initialEmployees } from './data';
 import { Branch, CustomField, Employee, LeaveRequest, Payslip, TimeEntry, Warning } from './types';
 import { Avatar, Modal } from './components';
@@ -17,7 +17,9 @@ import Leave from './Leave';
 import Payslips from './Payslips';
 import WarningsPage from './Warnings';
 import AuthScreen from './AuthScreen';
-import { clearPersistedAuthArtifacts, signOutFromPeopleflow, type AuthenticatedUser } from './lib/supabase';
+import AddUserPage from './AddUser';
+import AccountSetupPage from './AccountSetup';
+import { clearPersistedAuthArtifacts, consumeOneTimeInviteFromLocation, signOutFromPeopleflow, type AuthenticatedUser } from './lib/supabase';
 
 const load = <T,>(key: string, fallback: T): T => { try { const saved = localStorage.getItem(key); return saved ? JSON.parse(saved) : fallback; } catch { return fallback; } };
 
@@ -34,7 +36,7 @@ const prepareStorage = () => {
 };
 prepareStorage();
 
-type View = 'overview' | 'directory' | 'profile' | 'branches' | 'timesheets' | 'attendance' | 'leave' | 'payslips' | 'warnings' | 'settings';
+type View = 'overview' | 'directory' | 'profile' | 'branches' | 'timesheets' | 'attendance' | 'leave' | 'payslips' | 'warnings' | 'add-user' | 'account' | 'settings';
 
 const BOM = '\ufeff';
 
@@ -48,6 +50,8 @@ const pageTitles: Record<View, string> = {
   leave: 'Leave requests',
   payslips: 'Payslips',
   warnings: 'Warnings',
+  'add-user': 'Add user',
+  account: 'My profile & password',
   settings: 'Workspace settings',
 };
 
@@ -73,6 +77,9 @@ export default function App() {
   const [exportMenu, setExportMenu] = useState(false);
   const [importPreview, setImportPreview] = useState<WorkspaceImport>();
   const [authUser, setAuthUser] = useState<AuthenticatedUser | null>(null);
+  const [inviteError, setInviteError] = useState('');
+  const [checkingInvite, setCheckingInvite] = useState(() => typeof window !== 'undefined' && Boolean(window.location.hash || window.location.search));
+  const inviteProcessed = useRef(false);
   const importRef = useRef<HTMLInputElement>(null);
   const searchRef = useRef<HTMLInputElement>(null);
   const storageWarning = useRef(false);
@@ -115,8 +122,43 @@ export default function App() {
   }, []);
   useEffect(() => { if (toast) { const timer = setTimeout(() => setToast(''), 3200); return () => clearTimeout(timer); } }, [toast]);
 
+  useEffect(() => {
+    if (inviteProcessed.current) return;
+    inviteProcessed.current = true;
+    if (typeof window === 'undefined' || (!window.location.hash && !window.location.search)) {
+      setCheckingInvite(false);
+      return;
+    }
+    void (async () => {
+      try {
+        const result = await consumeOneTimeInviteFromLocation();
+        if (result.status === 'authenticated') {
+          setAuthUser(result.user);
+          setView('account');
+        } else if (result.status === 'error') {
+          setInviteError(result.message);
+        }
+      } finally {
+        setCheckingInvite(false);
+      }
+    })();
+  }, []);
+
   const notify = (message: string) => setToast(message);
-  const navigate = (next: View) => { setView(next); setMobileNav(false); setSelectedBranchId(undefined); setGlobalSearch(''); if (next !== 'directory') setDirectoryStatus(undefined); window.scrollTo({ top: 0, behavior: 'smooth' }); };
+  const navigate = (next: View) => {
+    if (authUser?.mustSetupPassword && next !== 'account') {
+      setView('account');
+      setMobileNav(false);
+      notify('Save your details and password first to finish activating your account');
+      return;
+    }
+    setView(next);
+    setMobileNav(false);
+    setSelectedBranchId(undefined);
+    setGlobalSearch('');
+    if (next !== 'directory') setDirectoryStatus(undefined);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
   const openEmployee = (id: string) => { setSelectedId(id); setView('profile'); setGlobalSearch(''); setSearchFocus(false); setMobileNav(false); window.scrollTo(0, 0); };
   const openDirectory = (status?: string) => { setDirectoryStatus(status); setView('directory'); };
   const openBranch = (id?: string) => { setSelectedBranchId(id); setView('branches'); };
@@ -214,9 +256,15 @@ export default function App() {
     setUserMenu(false);
     await signOutFromPeopleflow();
     setAuthUser(null);
+    setInviteError('');
+    setView('overview');
   };
 
-  if (!authUser) return <AuthScreen onAuthenticated={setAuthUser} />;
+  if (checkingInvite) {
+    return <div className="lock-screen"><div className="lock-card"><p>Verifying one-time invitation link…</p></div></div>;
+  }
+
+  if (!authUser) return <AuthScreen initialError={inviteError} onAuthenticated={user => { setInviteError(''); setAuthUser(user); setView(user.mustSetupPassword ? 'account' : 'overview'); }} />;
 
   return <div className="app-shell">
     {mobileNav && <div className="nav-overlay" onClick={() => setMobileNav(false)} />}
@@ -235,6 +283,8 @@ export default function App() {
         <NavItem icon={<Receipt size={19} />} label="Payslips" active={view === 'payslips'} onClick={() => navigate('payslips')} />
         <span className="nav-label nav-label-second">MANAGE</span>
         <NavItem icon={<ShieldAlert size={19} />} label="Warnings" active={view === 'warnings'} onClick={() => navigate('warnings')} />
+        <NavItem icon={<UserPlus size={19} />} label="Add user" active={view === 'add-user'} onClick={() => navigate('add-user')} />
+        <NavItem icon={<UserCog size={19} />} label="My account" active={view === 'account'} badge={authUser.mustSetupPassword ? 1 : undefined} onClick={() => navigate('account')} />
         <NavItem icon={<Settings size={19} />} label="Settings" active={view === 'settings'} onClick={() => navigate('settings')} />
       </nav>
       <div className="sidebar-bottom"><div className="quick-add"><div className="quick-add-icon"><Plus size={20} /></div><h3>Grow your team</h3><p>Add a new employee and keep every detail in one place.</p><button onClick={() => setEmployeeModal('add')}>Register employee<ChevronRight size={14} /></button></div><button className="help-link" onClick={() => notify('Help centre: use / to search, or open Settings to manage your workspace')}><CircleHelp size={18} /><span>Help & shortcuts</span><kbd>?</kbd></button><div className="sidebar-copyright">© 2026 Peopleflow HR<br /><span>Private & secure workspace</span></div></div>
@@ -245,7 +295,7 @@ export default function App() {
         <div className="workspace-chip"><UsersRound size={15} /><span>Peopleflow HR</span><ChevronDown size={12} /></div>
         <div className="topbar-actions"><div className="relative"><button className="btn btn-secondary topbar-export-trigger" onClick={() => setExportMenu(!exportMenu)} aria-haspopup="true" aria-expanded={exportMenu}><Download size={14} /><span>Export</span><ChevronDown size={12} /></button>{exportMenu && <div className="export-menu topbar-export-menu"><button onClick={() => { setExportMenu(false); backup(); }}><FileArchive size={16} /><span>Full backup (.zip)<small>Every record, group, and file</small></span></button><button onClick={() => { setExportMenu(false); exportCsv(employees); }}><FileSpreadsheet size={16} /><span>Employee list (.csv)<small>Spreadsheet for reporting</small></span></button><div className="export-menu-divider" /><button onClick={chooseImport}><Upload size={16} /><span>Import backup<small>Restore a .zip or .json backup</small></span></button></div>}</div><button className="btn btn-primary" onClick={() => setEmployeeModal('add')}><Plus size={15} /><span>Add employee</span></button></div>
         <div className="relative"><button className="icon-btn notification-btn" onClick={() => setNotifications(!notifications)} aria-label="Notifications"><Bell size={19} />{(onLeaveToday.length > 0 || pendingLeave > 0 || latestUpdated) && <i />}</button>{notifications && <div className="notifications-pop"><div className="pop-head"><strong>Notifications</strong><button onClick={() => setNotifications(false)} aria-label="Close notifications"><X size={16} /></button></div>{pendingLeave > 0 && <div className="notification-item"><span className="notification-icon amber"><CalendarDays size={17} /></span><div><strong>{pendingLeave} leave request{pendingLeave === 1 ? '' : 's'} to review</strong><p>Approve or decline time off from the leave page.</p><small>Today</small></div></div>}{onLeaveToday.length > 0 && <div className="notification-item"><span className="notification-icon green"><UserRound size={17} /></span><div><strong>{onLeaveToday.length} {onLeaveToday.length === 1 ? 'person is' : 'people are'} away today</strong><p>{onLeaveToday.map(employee => employee.fullName.split(' ')[0]).join(' and ')}.</p><small>Today</small></div></div>}{latestUpdated && <div className="notification-item"><span className="notification-icon green"><FileText size={17} /></span><div><strong>Profile recently updated</strong><p>{latestUpdated.fullName}’s employee record was updated.</p><small>Latest change</small></div></div>}{!onLeaveToday.length && !pendingLeave && !latestUpdated && <div className="notification-empty"><Bell size={22} /><strong>No notifications yet</strong><p>Employee updates will appear here once you add people.</p></div>}<button className="notifications-done" onClick={() => setNotifications(false)}>Mark all as read</button></div>}</div>
-        <div className="topbar-divider" /><div className="relative"><button className="topbar-user" onClick={() => setUserMenu(!userMenu)}><div className="user-avatar">{authUser.initials}</div><span>{authUser.shortName}</span><ChevronDown size={14} /></button>{userMenu && <div className="context-menu user-menu"><div><strong>{authUser.displayName}</strong><span>{authUser.identifier}</span></div><button onClick={() => { navigate('settings'); setUserMenu(false); }}><Settings size={16} />Workspace settings</button><button onClick={handleSignOut}><LogOut size={16} />Sign out</button></div>}</div>
+        <div className="topbar-divider" /><div className="relative"><button className="topbar-user" onClick={() => setUserMenu(!userMenu)}><div className="user-avatar">{authUser.initials}</div><span>{authUser.shortName}</span><ChevronDown size={14} /></button>{userMenu && <div className="context-menu user-menu"><div><strong>{authUser.displayName}</strong><span>{authUser.identifier}</span></div><button onClick={() => { navigate('account'); setUserMenu(false); }}><UserCog size={16} />My profile & password</button><button onClick={() => { navigate('add-user'); setUserMenu(false); }}><UserPlus size={16} />Add user</button><button onClick={() => { navigate('settings'); setUserMenu(false); }}><Settings size={16} />Workspace settings</button><button onClick={handleSignOut}><LogOut size={16} />Sign out</button></div>}</div>
       </div></header>
       <div className="page-content">
         {view === 'overview' && <Overview employees={employees} onOpen={openEmployee} onDirectory={openDirectory} onAdd={() => setEmployeeModal('add')} onExport={() => exportCsv(employees)} />}
@@ -257,6 +307,8 @@ export default function App() {
         {view === 'leave' && <Leave employees={employees} branches={branches} requests={leaveRequests} onSave={saveLeave} onUpdate={updateLeave} onDelete={id => { setLeaveRequests(list => list.filter(request => request.id !== id)); notify('Leave request deleted'); }} notify={notify} />}
         {view === 'payslips' && <Payslips employees={employees} branches={branches} payslips={payslips} onGenerate={savePayslips} onUpdate={updatePayslip} onDelete={id => { setPayslips(list => list.filter(slip => slip.id !== id)); notify('Payslip deleted'); }} notify={notify} />}
         {view === 'warnings' && <WarningsPage employees={employees} branches={branches} warnings={warnings} currentUserLabel={authUser.displayName} onSave={saveWarning} onUpdate={updateWarning} onDelete={id => { setWarnings(list => list.filter(warning => warning.id !== id)); notify('Warning deleted'); }} notify={notify} />}
+        {view === 'add-user' && <AddUserPage authUser={authUser} notify={notify} />}
+        {view === 'account' && <AccountSetupPage authUser={authUser} onUpdated={updated => { const wasSetup = authUser.mustSetupPassword; setAuthUser(updated); if (wasSetup && !updated.mustSetupPassword) setView('overview'); }} notify={notify} />}
         {view === 'settings' && <SettingsPage customFields={customFields} authUser={authUser} onAdd={field => { setCustomFields(list => [...list, field]); notify('Custom field added'); }} onDelete={id => { const field = customFields.find(item => item.id !== id ? false : true); setCustomFields(list => list.filter(item => item.id !== id)); if (field) setEmployees(list => list.map(employee => { const custom = { ...employee.custom }; delete custom[field.label]; return { ...employee, custom }; })); notify('Custom field removed'); }} onBackup={backup} onImport={chooseImport} onReset={clearWorkspace} notify={notify} />}
       </div>
       <footer className="app-footer"><span><Cloud size={14} />All changes saved locally</span><span>Peopleflow · Your people, organised.</span></footer>

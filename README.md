@@ -27,7 +27,8 @@ npm run dev
 - Resignation/termination offboarding and reactivation
 - Global custom employee fields and full ZIP workspace backups (employees, branches, time, leave, payslips, warnings, documents, and photos)
 - Backup restore: import a `.zip` (or older `.json`) backup and the workspace is rebuilt exactly as it was exported
-- Supabase Auth (`peopleflow`) gate supporting Email & Password, Email OTP, and Number OTP for existing directory users only (`shouldCreateUser: false`)
+- Strict Email & Password login (`src/AuthScreen.tsx`) — public sign-up, Email OTP, and Number OTP are disabled
+- Dashboard **Add user** page (`src/AddUser.tsx` + Supabase Edge Function `invite-user`) to invite colleagues by email with a single-use, 60-minute verification link to the dashboard, where they edit their details and create their own password (`src/AccountSetup.tsx`)
 - Ephemeral in-memory authentication (`persistSession: false`): zero session cookies or persisted auth tokens, so reloading the page always requires signing in again
 
 ## Environment variables

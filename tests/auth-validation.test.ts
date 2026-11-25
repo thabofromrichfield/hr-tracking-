@@ -5,9 +5,11 @@ import {
   mapAuthError,
   normalizeE164Phone,
   normalizeEmail,
+  parseInviteUrlParams,
   sanitizeRedirectPath,
   validateEmail,
   validateOtpToken,
+  validatePasswordSetup,
 } from "../src/lib/auth-validation.ts";
 import {
   clearPersistedAuthArtifacts,
@@ -165,4 +167,83 @@ test("clearPersistedAuthArtifacts wipes sb-* and pf_* storage while keeping work
   assert.equal(sessionStore.getItem("sb-temp-session"), null);
   assert.ok(expiredCookies.some((c) => c.startsWith("sb-qnoxvzhsywmyatiqdedj-auth-token=;")));
   assert.ok(expiredCookies.some((c) => c.startsWith("pf_access_token=;")));
+});
+
+test("parseInviteUrlParams accepts only single-use type=invite links and rejects all other auth link types", () => {
+  assert.deepEqual(parseInviteUrlParams("", ""), { kind: "none" });
+
+  assert.deepEqual(
+    parseInviteUrlParams("#access_token=jwt1&refresh_token=ref1&type=invite", ""),
+    {
+      kind: "invite_session",
+      accessToken: "jwt1",
+      refreshToken: "ref1",
+    }
+  );
+
+  assert.deepEqual(
+    parseInviteUrlParams("", "?token_hash=hash123&type=invite"),
+    {
+      kind: "invite_token_hash",
+      tokenHash: "hash123",
+    }
+  );
+
+  assert.equal(
+    parseInviteUrlParams("#access_token=jwt1&refresh_token=ref1&type=magiclink", "").kind,
+    "rejected"
+  );
+  assert.equal(
+    parseInviteUrlParams("#access_token=jwt1&refresh_token=ref1&type=recovery", "").kind,
+    "rejected"
+  );
+  assert.equal(
+    parseInviteUrlParams("", "?token_hash=hash123&type=signup").kind,
+    "rejected"
+  );
+  assert.equal(
+    parseInviteUrlParams("#error=access_denied&error_code=otp_expired", "").kind,
+    "expired"
+  );
+});
+
+test("validatePasswordSetup enforces length, letter+number complexity, and confirmation match", () => {
+  assert.equal(validatePasswordSetup("Peopleflow2026", "Peopleflow2026"), null);
+  assert.ok(validatePasswordSetup("short1", "short1"));
+  assert.ok(validatePasswordSetup("onlyletters", "onlyletters"));
+  assert.ok(validatePasswordSetup("123456789", "123456789"));
+  assert.ok(validatePasswordSetup("Peopleflow2026", "Mismatch2026"));
+});
+
+test("toAuthenticatedUser flags mustSetupPassword for invited users until password_set is true", () => {
+  const invited = toAuthenticatedUser(
+    {
+      id: "u-inv",
+      email: "newuser@company.co.za",
+      email_confirmed_at: "2026-11-25T12:00:00Z",
+      app_metadata: { role: "hr_user" },
+      user_metadata: {},
+      aud: "authenticated",
+      created_at: "2026-11-25T12:00:00Z",
+    },
+    { password_set: false, role: "hr_user" }
+  );
+  assert.ok(invited);
+  assert.equal(invited.mustSetupPassword, true);
+
+  const onboarded = toAuthenticatedUser(
+    {
+      id: "u-inv",
+      email: "newuser@company.co.za",
+      email_confirmed_at: "2026-11-25T12:00:00Z",
+      app_metadata: { role: "hr_user" },
+      user_metadata: {},
+      aud: "authenticated",
+      created_at: "2026-11-25T12:00:00Z",
+    },
+    { full_name: "Lerato Molefe", password_set: true, role: "hr_user" }
+  );
+  assert.ok(onboarded);
+  assert.equal(onboarded.mustSetupPassword, false);
+  assert.equal(onboarded.displayName, "Lerato Molefe");
 });
