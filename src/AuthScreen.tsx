@@ -1,5 +1,5 @@
 import { type FormEvent, useState } from 'react';
-import { Eye, EyeOff, LockKeyhole, ShieldCheck } from 'lucide-react';
+import { Eye, EyeOff, LockKeyhole } from 'lucide-react';
 import { validateEmail } from './lib/auth-validation.ts';
 import {
   signInWithEmailPassword,
@@ -71,9 +71,7 @@ export default function AuthScreen({
 
         <form className="auth-form auth-form--direct" onSubmit={handleSubmit} noValidate>
           <div className="field">
-            <label htmlFor="pf-login-email">
-              Work email<em>*</em>
-            </label>
+            <label htmlFor="pf-login-email">Email:</label>
             <input
               id="pf-login-email"
               name="email"
@@ -89,9 +87,7 @@ export default function AuthScreen({
           </div>
 
           <div className="field">
-            <label htmlFor="pf-login-password">
-              Password<em>*</em>
-            </label>
+            <label htmlFor="pf-login-password">Password</label>
             <div className="auth-pw-row">
               <input
                 id="pf-login-password"
@@ -123,16 +119,7 @@ export default function AuthScreen({
             {loading ? 'Signing in…' : 'Sign in to workspace'}
           </button>
         </form>
-
-        <small className="auth-security-foot">
-          <ShieldCheck size={14} />
-          Invite-only access · Reloading signs out automatically
-        </small>
       </div>
-
-      <p className="lock-foot">
-        New users can only join via a single-use verification link sent from Add user.
-      </p>
     </div>
   );
 }
