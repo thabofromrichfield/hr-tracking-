@@ -19,7 +19,16 @@ import WarningsPage from './Warnings';
 import AuthScreen from './AuthScreen';
 import AddUserPage from './AddUser';
 import AccountSetupPage from './AccountSetup';
-import { clearPersistedAuthArtifacts, consumeOneTimeInviteFromLocation, signOutFromPeopleflow, type AuthenticatedUser } from './lib/supabase';
+import {
+  ACTIVE_SESSION_STORAGE_KEY,
+  clearPersistedAuthArtifacts,
+  consumeOneTimeInviteFromLocation,
+  isSessionInactive,
+  recordSessionActivity,
+  restoreActiveSessionOnReload,
+  signOutFromPeopleflow,
+  type AuthenticatedUser,
+} from './lib/supabase';
 
 const load = <T,>(key: string, fallback: T): T => { try { const saved = localStorage.getItem(key); return saved ? JSON.parse(saved) : fallback; } catch { return fallback; } };
 
@@ -27,7 +36,7 @@ const load = <T,>(key: string, fallback: T): T => { try { const saved = localSto
 const STORAGE_VERSION = '3';
 const STORAGE_KEYS = ['peopleflow-employees', 'peopleflow-branches', 'peopleflow-groups', 'peopleflow-fields', 'peopleflow-timesheets', 'peopleflow-leave', 'peopleflow-payslips', 'peopleflow-warnings'];
 const prepareStorage = () => {
-  clearPersistedAuthArtifacts();
+  clearPersistedAuthArtifacts({ includeActiveSession: false });
   try {
     if (localStorage.getItem('peopleflow-storage-version') === STORAGE_VERSION) return;
     STORAGE_KEYS.forEach(key => localStorage.removeItem(key));
@@ -78,7 +87,17 @@ export default function App() {
   const [importPreview, setImportPreview] = useState<WorkspaceImport>();
   const [authUser, setAuthUser] = useState<AuthenticatedUser | null>(null);
   const [inviteError, setInviteError] = useState('');
-  const [checkingInvite, setCheckingInvite] = useState(() => typeof window !== 'undefined' && Boolean(window.location.hash || window.location.search));
+  const [checkingInvite, setCheckingInvite] = useState(() => {
+    if (typeof window === 'undefined') return false;
+    const hasUrlCallback = Boolean(window.location.hash || window.location.search);
+    let hasTabSession = false;
+    try {
+      hasTabSession = Boolean(window.sessionStorage.getItem(ACTIVE_SESSION_STORAGE_KEY));
+    } catch {
+      hasTabSession = false;
+    }
+    return hasUrlCallback || hasTabSession;
+  });
   const inviteProcessed = useRef(false);
   const importRef = useRef<HTMLInputElement>(null);
   const searchRef = useRef<HTMLInputElement>(null);
@@ -125,24 +144,97 @@ export default function App() {
   useEffect(() => {
     if (inviteProcessed.current) return;
     inviteProcessed.current = true;
-    if (typeof window === 'undefined' || (!window.location.hash && !window.location.search)) {
+    if (typeof window === 'undefined') {
       setCheckingInvite(false);
       return;
     }
     void (async () => {
       try {
-        const result = await consumeOneTimeInviteFromLocation();
-        if (result.status === 'authenticated') {
-          setAuthUser(result.user);
-          setView('account');
-        } else if (result.status === 'error') {
-          setInviteError(result.message);
+        if (window.location.hash || window.location.search) {
+          const inviteResult = await consumeOneTimeInviteFromLocation();
+          if (inviteResult.status === 'authenticated') {
+            setAuthUser(inviteResult.user);
+            setView('account');
+            return;
+          }
+          if (inviteResult.status === 'error') {
+            setInviteError(inviteResult.message);
+            return;
+          }
+        }
+
+        const restored = await restoreActiveSessionOnReload();
+        if (restored.status === 'authenticated') {
+          setAuthUser(restored.user);
+          if (restored.user.mustSetupPassword) {
+            setView('account');
+          }
+        } else if (restored.status === 'expired') {
+          setInviteError(restored.message);
         }
       } finally {
         setCheckingInvite(false);
       }
     })();
   }, []);
+
+  // Track user activity while logged in and auto-sign-out after 1 hour of inactivity
+  useEffect(() => {
+    if (!authUser || typeof window === 'undefined') return;
+
+    let lastRecorded = Date.now();
+    recordSessionActivity(lastRecorded);
+
+    const onUserActivity = () => {
+      const now = Date.now();
+      if (isSessionInactive(now)) {
+        void (async () => {
+          await signOutFromPeopleflow();
+          setAuthUser(null);
+          setInviteError('Your session ended after 1 hour of inactivity. Sign in again.');
+          setView('overview');
+        })();
+        return;
+      }
+      if (now - lastRecorded >= 10000) {
+        lastRecorded = now;
+        recordSessionActivity(now);
+      }
+    };
+
+    const checkIdleExpiry = () => {
+      if (isSessionInactive()) {
+        void (async () => {
+          await signOutFromPeopleflow();
+          setAuthUser(null);
+          setInviteError('Your session ended after 1 hour of inactivity. Sign in again.');
+          setView('overview');
+        })();
+      }
+    };
+
+    const activityEvents: Array<keyof WindowEventMap> = [
+      'pointerdown',
+      'keydown',
+      'touchstart',
+      'scroll',
+      'mousemove',
+    ];
+    activityEvents.forEach(evt =>
+      window.addEventListener(evt, onUserActivity, { passive: true })
+    );
+    document.addEventListener('visibilitychange', checkIdleExpiry);
+
+    const intervalId = window.setInterval(checkIdleExpiry, 15000);
+
+    return () => {
+      activityEvents.forEach(evt =>
+        window.removeEventListener(evt, onUserActivity)
+      );
+      document.removeEventListener('visibilitychange', checkIdleExpiry);
+      window.clearInterval(intervalId);
+    };
+  }, [authUser]);
 
   const notify = (message: string) => setToast(message);
   const navigate = (next: View) => {
@@ -263,7 +355,7 @@ export default function App() {
   };
 
   if (checkingInvite) {
-    return <div className="lock-screen"><div className="lock-card"><p>Verifying one-time invitation link…</p></div></div>;
+    return <div className="lock-screen"><div className="lock-card"><p>Checking active session…</p></div></div>;
   }
 
   if (!authUser) return <AuthScreen initialError={inviteError} onAuthenticated={user => { setInviteError(''); setAuthUser(user); setView(user.mustSetupPassword ? 'account' : 'overview'); }} />;

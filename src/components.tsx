@@ -46,7 +46,7 @@ export function EmployeeTable({ employees, onOpen, showDepartment = true, compac
     <tbody>{employees.map(employee => <tr key={employee.id} onClick={() => onOpen(employee.id)}>
       <td><div className="person-cell"><Avatar employee={employee} /><div><strong>{employee.fullName}</strong><span>{employee.jobTitle}</span></div></div></td>
       {!compact && <td className="muted mono">{employee.employeeNumber}</td>}
-      {showDepartment && <td>{employee.department}</td>}{branches && <td>{branches.find(branch => branch.id === employee.branchId)?.name || '—'}</td>}
+      {showDepartment && <td>{employee.department || '—'}</td>}{branches && <td>{branches.find(branch => branch.id === employee.branchId)?.name || '—'}</td>}
       {!compact && <td>{employee.employmentType}</td>}<td><StatusBadge status={employee.status} /></td>
       {!compact && <td className="muted">{formatDate(employee.startDate)}</td>}<td><button className="row-open" aria-label={`Open ${employee.fullName}`}>→</button></td>
     </tr>)}</tbody></table>{employees.length === 0 && <div className="empty-table"><Search size={28} /><h3>No employees found</h3><p>Try changing your search or filters.</p></div>}</div>;

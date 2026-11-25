@@ -10,6 +10,14 @@ const DEFAULT_PEOPLEFLOW_SUPABASE_URL = 'https://qnoxvzhsywmyatiqdedj.supabase.c
 const DEFAULT_PEOPLEFLOW_PUBLISHABLE_KEY =
   'sb_publishable_H8M3OAq8QpHaMOEoplES9w_nbo78CE0';
 
+/**
+ * Active logged-in sessions survive page reloads in sessionStorage and expire
+ * automatically after 1 hour of user inactivity (or explicit sign-out).
+ */
+export const SESSION_INACTIVITY_LIMIT_MS = 60 * 60 * 1000; // 1 hour
+export const ACTIVE_SESSION_STORAGE_KEY = 'pf-active-session';
+export const LAST_ACTIVE_AT_KEY = 'pf-last-active-at';
+
 export interface WorkspaceUserRecord {
   id: string;
   email: string;
@@ -46,34 +54,61 @@ export interface AuthenticatedUser {
 }
 
 /**
- * Purges any persisted Supabase or legacy auth cookies/storage so reloading
- * the page never auto-logs a user back in without re-authenticating.
+ * Purges any legacy localStorage auth tokens or auth cookies so unauthenticated
+ * users are never auto-logged in via lingering browser storage, while optionally
+ * clearing or keeping the active tab's sessionStorage session.
  */
-export function clearPersistedAuthArtifacts(): void {
+export function clearPersistedAuthArtifacts(options?: {
+  includeActiveSession?: boolean;
+}): void {
   if (typeof window === 'undefined') {
     return;
   }
 
-  for (const store of [window.localStorage, window.sessionStorage]) {
-    try {
-      const keysToDelete: string[] = [];
-      for (let i = 0; i < store.length; i += 1) {
-        const key = store.key(i);
-        if (
-          key &&
-          (key.startsWith('sb-') ||
-            key.startsWith('supabase.auth') ||
-            key.startsWith('pf_'))
-        ) {
-          keysToDelete.push(key);
-        }
+  const clearActive = options?.includeActiveSession ?? true;
+
+  try {
+    const localKeys: string[] = [];
+    for (let i = 0; i < window.localStorage.length; i += 1) {
+      const key = window.localStorage.key(i);
+      if (
+        key &&
+        (key.startsWith('sb-') ||
+          key.startsWith('supabase.auth') ||
+          key.startsWith('pf_') ||
+          key.startsWith('pf-'))
+      ) {
+        localKeys.push(key);
       }
-      for (const key of keysToDelete) {
-        store.removeItem(key);
-      }
-    } catch {
-      // Ignore storage access errors in restricted environments
     }
+    for (const key of localKeys) {
+      window.localStorage.removeItem(key);
+    }
+  } catch {
+    // Ignore storage access errors
+  }
+
+  try {
+    const sessionKeys: string[] = [];
+    for (let i = 0; i < window.sessionStorage.length; i += 1) {
+      const key = window.sessionStorage.key(i);
+      if (!key) continue;
+      if (
+        key.startsWith('sb-') ||
+        key.startsWith('supabase.auth') ||
+        key.startsWith('pf_') ||
+        (clearActive &&
+          (key.startsWith(ACTIVE_SESSION_STORAGE_KEY) ||
+            key === LAST_ACTIVE_AT_KEY))
+      ) {
+        sessionKeys.push(key);
+      }
+    }
+    for (const key of sessionKeys) {
+      window.sessionStorage.removeItem(key);
+    }
+  } catch {
+    // Ignore storage access errors
   }
 
   try {
@@ -90,6 +125,65 @@ export function clearPersistedAuthArtifacts(): void {
   }
 }
 
+export function recordSessionActivity(now: number = Date.now()): void {
+  if (typeof window === 'undefined') return;
+  try {
+    window.sessionStorage.setItem(LAST_ACTIVE_AT_KEY, String(now));
+  } catch {
+    // Ignore storage write errors
+  }
+}
+
+export function getLastSessionActivity(): number | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    const raw = window.sessionStorage.getItem(LAST_ACTIVE_AT_KEY);
+    if (!raw) return null;
+    const parsed = Number(raw);
+    return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
+export function isSessionInactive(
+  now: number = Date.now(),
+  limitMs: number = SESSION_INACTIVITY_LIMIT_MS
+): boolean {
+  const lastActive = getLastSessionActivity();
+  if (lastActive === null) {
+    return true;
+  }
+  return now - lastActive >= limitMs;
+}
+
+const tabSessionStorageAdapter = {
+  getItem: (key: string): string | null => {
+    if (typeof window === 'undefined') return null;
+    try {
+      return window.sessionStorage.getItem(key);
+    } catch {
+      return null;
+    }
+  },
+  setItem: (key: string, value: string): void => {
+    if (typeof window === 'undefined') return;
+    try {
+      window.sessionStorage.setItem(key, value);
+    } catch {
+      // Ignore storage errors
+    }
+  },
+  removeItem: (key: string): void => {
+    if (typeof window === 'undefined') return;
+    try {
+      window.sessionStorage.removeItem(key);
+    } catch {
+      // Ignore storage errors
+    }
+  },
+};
+
 export function getSupabasePublicConfig(): { url: string; publishableKey: string } {
   const envUrl = import.meta.env?.VITE_SUPABASE_URL as string | undefined;
   const envKey = import.meta.env?.VITE_SUPABASE_PUBLISHABLE_KEY as string | undefined;
@@ -100,22 +194,24 @@ export function getSupabasePublicConfig(): { url: string; publishableKey: string
   };
 }
 
-let ephemeralClient: SupabaseClient | null = null;
+let supabaseInstance: SupabaseClient | null = null;
 
 export function getPeopleflowSupabase(): SupabaseClient {
-  if (ephemeralClient) {
-    return ephemeralClient;
+  if (supabaseInstance) {
+    return supabaseInstance;
   }
-  clearPersistedAuthArtifacts();
+  clearPersistedAuthArtifacts({ includeActiveSession: false });
   const { url, publishableKey } = getSupabasePublicConfig();
-  ephemeralClient = createClient(url, publishableKey, {
+  supabaseInstance = createClient(url, publishableKey, {
     auth: {
-      persistSession: false,
-      autoRefreshToken: false,
+      persistSession: true,
+      storageKey: ACTIVE_SESSION_STORAGE_KEY,
+      storage: tabSessionStorageAdapter,
+      autoRefreshToken: true,
       detectSessionInUrl: false,
     },
   });
-  return ephemeralClient;
+  return supabaseInstance;
 }
 
 export async function signOutFromPeopleflow(): Promise<void> {
@@ -125,7 +221,7 @@ export async function signOutFromPeopleflow(): Promise<void> {
   } catch {
     // Ignore network/local sign-out errors
   } finally {
-    clearPersistedAuthArtifacts();
+    clearPersistedAuthArtifacts({ includeActiveSession: true });
   }
 }
 
@@ -257,6 +353,68 @@ async function fetchOwnWorkspaceRow(
   }
 }
 
+/**
+ * Restores an already-signed-in tab session across page reloads if and only if
+ * the user explicitly signed in earlier in this session and has been active
+ * within the past 1 hour. Never auto-logs in an unauthenticated user.
+ */
+export async function restoreActiveSessionOnReload(): Promise<
+  | { status: 'signed_out' }
+  | { status: 'expired'; message: string }
+  | { status: 'authenticated'; user: AuthenticatedUser }
+> {
+  if (typeof window === 'undefined') {
+    return { status: 'signed_out' };
+  }
+
+  clearPersistedAuthArtifacts({ includeActiveSession: false });
+
+  let rawStoredSession: string | null = null;
+  try {
+    rawStoredSession = window.sessionStorage.getItem(ACTIVE_SESSION_STORAGE_KEY);
+  } catch {
+    rawStoredSession = null;
+  }
+
+  if (!rawStoredSession) {
+    return { status: 'signed_out' };
+  }
+
+  if (isSessionInactive()) {
+    await signOutFromPeopleflow();
+    return {
+      status: 'expired',
+      message: 'Your session ended after 1 hour of inactivity. Sign in again.',
+    };
+  }
+
+  const supabase = getPeopleflowSupabase();
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+
+  if (!session?.access_token) {
+    await signOutFromPeopleflow();
+    return { status: 'signed_out' };
+  }
+
+  const { data: verified, error: userErr } = await supabase.auth.getUser();
+  if (userErr || !verified.user) {
+    await signOutFromPeopleflow();
+    return { status: 'signed_out' };
+  }
+
+  const row = await fetchOwnWorkspaceRow(verified.user.id);
+  const mapped = toAuthenticatedUser(verified.user, row);
+  if (!mapped) {
+    await signOutFromPeopleflow();
+    return { status: 'signed_out' };
+  }
+
+  recordSessionActivity();
+  return { status: 'authenticated', user: mapped };
+}
+
 export async function signInWithEmailPassword(
   rawEmail: string,
   password: string
@@ -306,7 +464,8 @@ export async function signInWithEmailPassword(
     };
   }
 
-  clearPersistedAuthArtifacts();
+  clearPersistedAuthArtifacts({ includeActiveSession: false });
+  recordSessionActivity();
   return { ok: true, user: { ...authUser, mustSetupPassword: false } };
 }
 
@@ -429,7 +588,8 @@ export async function consumeOneTimeInviteFromLocation(): Promise<
     };
   }
 
-  clearPersistedAuthArtifacts();
+  clearPersistedAuthArtifacts({ includeActiveSession: false });
+  recordSessionActivity();
   return {
     status: 'authenticated',
     user: { ...mapped, mustSetupPassword: true },
@@ -471,6 +631,7 @@ export async function inviteWorkspaceUser(input: {
     };
   }
 
+  recordSessionActivity();
   const { url, publishableKey } = getSupabasePublicConfig();
   const redirectOrigin =
     typeof window !== 'undefined' ? window.location.origin : undefined;
@@ -590,7 +751,8 @@ export async function saveOwnProfileAndPassword(input: {
     };
   }
 
-  clearPersistedAuthArtifacts();
+  clearPersistedAuthArtifacts({ includeActiveSession: false });
+  recordSessionActivity();
 
   const mapped = toAuthenticatedUser(
     updatedAuth.user,

@@ -8,7 +8,7 @@ export default function Overview({ employees, onOpen, onDirectory, onAdd, onExpo
   const active = employees.filter(e => e.status === 'Active');
   const onLeave = employees.filter(e => e.status === 'On leave');
   const former = employees.length - current.length;
-  const deptCounts = Object.entries(current.reduce<Record<string, number>>((acc, e) => { acc[e.department] = (acc[e.department] || 0) + 1; return acc; }, {})).sort((a, b) => b[1] - a[1]);
+  const deptCounts = Object.entries(current.reduce<Record<string, number>>((acc, e) => { const key = e.department || 'General'; acc[key] = (acc[key] || 0) + 1; return acc; }, {})).sort((a, b) => b[1] - a[1]);
   const recent = [...current].sort((a, b) => b.startDate.localeCompare(a.startDate)).slice(0, 5);
   const newestThisYear = current.filter(e => e.startDate >= '2026-01-01').length;
   const percentage = (count: number) => Math.round(count / Math.max(1, current.length) * 100);

@@ -12,7 +12,13 @@ import {
   validatePasswordSetup,
 } from "../src/lib/auth-validation.ts";
 import {
+  ACTIVE_SESSION_STORAGE_KEY,
   clearPersistedAuthArtifacts,
+  getLastSessionActivity,
+  isSessionInactive,
+  LAST_ACTIVE_AT_KEY,
+  recordSessionActivity,
+  SESSION_INACTIVITY_LIMIT_MS,
   toAuthenticatedUser,
 } from "../src/lib/supabase.ts";
 
@@ -118,7 +124,7 @@ test("toAuthenticatedUser blocks unconfirmed users and ignores user_metadata.rol
   assert.equal(confirmed.identifier, "thabo@company.co.za");
 });
 
-test("clearPersistedAuthArtifacts wipes sb-* and pf_* storage while keeping workspace records", () => {
+test("reload preserves active sessionStorage session until logout or 1-hour inactivity while purging localStorage/cookies", () => {
   const makeStore = (initial: Record<string, string>) => {
     const map = new Map(Object.entries(initial));
     return {
@@ -127,6 +133,9 @@ test("clearPersistedAuthArtifacts wipes sb-* and pf_* storage while keeping work
       },
       key: (i: number) => Array.from(map.keys())[i] ?? null,
       getItem: (k: string) => map.get(k) ?? null,
+      setItem: (k: string, v: string) => {
+        map.set(k, v);
+      },
       removeItem: (k: string) => {
         map.delete(k);
       },
@@ -139,6 +148,7 @@ test("clearPersistedAuthArtifacts wipes sb-* and pf_* storage while keeping work
     "peopleflow-employees": '[{"id":"emp-1"}]',
   });
   const sessionStore = makeStore({
+    [ACTIVE_SESSION_STORAGE_KEY]: '{"access_token":"live-session"}',
     "sb-temp-session": "1",
   });
 
@@ -159,14 +169,30 @@ test("clearPersistedAuthArtifacts wipes sb-* and pf_* storage while keeping work
     configurable: true,
   });
 
-  clearPersistedAuthArtifacts();
-
+  // Page reload cleanup (includeActiveSession: false) keeps active tab session alive
+  clearPersistedAuthArtifacts({ includeActiveSession: false });
   assert.equal(localStore.getItem("sb-qnoxvzhsywmyatiqdedj-auth-token"), null);
   assert.equal(localStore.getItem("pf_access_token"), null);
   assert.equal(localStore.getItem("peopleflow-employees"), '[{"id":"emp-1"}]');
+  assert.equal(
+    sessionStore.getItem(ACTIVE_SESSION_STORAGE_KEY),
+    '{"access_token":"live-session"}'
+  );
   assert.equal(sessionStore.getItem("sb-temp-session"), null);
   assert.ok(expiredCookies.some((c) => c.startsWith("sb-qnoxvzhsywmyatiqdedj-auth-token=;")));
-  assert.ok(expiredCookies.some((c) => c.startsWith("pf_access_token=;")));
+
+  // 1-hour inactivity tracking
+  assert.equal(SESSION_INACTIVITY_LIMIT_MS, 60 * 60 * 1000);
+  const t0 = 1_700_000_000_000;
+  recordSessionActivity(t0);
+  assert.equal(getLastSessionActivity(), t0);
+  assert.equal(isSessionInactive(t0 + 59 * 60 * 1000), false);
+  assert.equal(isSessionInactive(t0 + 60 * 60 * 1000 + 1), true);
+
+  // Explicit logout wipes active session + inactivity timestamp
+  clearPersistedAuthArtifacts({ includeActiveSession: true });
+  assert.equal(sessionStore.getItem(ACTIVE_SESSION_STORAGE_KEY), null);
+  assert.equal(sessionStore.getItem(LAST_ACTIVE_AT_KEY), null);
 });
 
 test("parseInviteUrlParams accepts only single-use type=invite links and rejects all other auth link types", () => {

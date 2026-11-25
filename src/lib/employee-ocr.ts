@@ -19,10 +19,26 @@ export interface BlockScanStatus {
   allMissing: boolean;
 }
 
+/**
+ * The 8 high-priority fields the OCR engine hunts down first across every layout.
+ */
+export const PRIORITY_OCR_FIELDS = [
+  { key: 'idNumber', label: 'ID number' },
+  { key: 'phone', label: 'Contact number' },
+  { key: 'dob', label: 'Date of birth' },
+  { key: 'fullName', label: 'Full name' },
+  { key: 'email', label: 'Email address' },
+  { key: 'address', label: 'Home address' },
+  { key: 'jobTitle', label: 'Job title' },
+  { key: 'startDate', label: 'Start date' },
+] as const;
+
 export interface EmployeeOcrExtraction {
   values: Partial<EmployeeFormDraft> & { custom?: Record<string, string> };
   filledFields: string[];
   missingFields: string[];
+  priorityFound: string[];
+  priorityMissing: string[];
   blocks: Record<EmployeeBlockKey, BlockScanStatus>;
   rawText: string;
 }
@@ -34,22 +50,21 @@ export interface OcrProgressUpdate {
 
 export const PERSONAL_FIELD_KEYS = [
   'fullName',
-  'employeeNumber',
   'idNumber',
   'dob',
-  'email',
   'phone',
+  'email',
   'address',
+  'employeeNumber',
   'emergencyName',
   'emergencyPhone',
 ] as const;
 
 export const EMPLOYMENT_FIELD_KEYS = [
   'jobTitle',
-  'department',
+  'startDate',
   'manager',
   'employmentType',
-  'startDate',
   'branchId',
   'monthlySalary',
   'status',
@@ -140,7 +155,133 @@ const HEADER_STOPWORDS = new Set([
   'CITIZENSHIP',
   'SEX',
   'SIGNATURE',
+  'CONFIDENTIAL',
+  'APPLICATION',
+  'PROFILE',
+  'SUMMARY',
+  'PAGE',
+  'COMPANY',
+  'DEPARTMENT',
+  'ADDRESS',
+  'CONTACT',
 ]);
+
+const ROLE_KEYWORDS_RE =
+  /\b(?:manager|officer|coordinator|administrator|admin|engineer|developer|designer|driver|operator|technician|specialist|analyst|assistant|clerk|supervisor|director|consultant|accountant|receptionist|controller|lead|intern|worker|agent|representative|executive|artisan|mechanic|electrician|welder|packer|picker|cashier|cleaner|guard|nurse|practitioner|trainer|hr|payroll|recruiter)\b/i;
+
+const SA_STREET_RE =
+  /\b(?:\d{1,5}[A-Za-z]?\s+[A-Za-z0-9'\s]{2,35}\s+(?:street|st|road|rd|avenue|ave|drive|dr|lane|ln|close|cl|crescent|cres|boulevard|blvd|way|place|pl|court|ct|highway|hwy|terrace|ext|extension|section|stand|erf|plot|unit|complex|estate|gardens|park))\b/i;
+
+const SA_LOCALITY_RE =
+  /\b(?:johannesburg|joburg|sandton|rosebank|midrand|randburg|roodepoort|soweto|orlando|diepkloof|alexandra|fourways|bryanston|ekurhuleni|boksburg|benoni|germiston|kempton\s*park|edenvale|bedfordview|springs|brakpan|alberton|tembisa|katlehong|tshwane|pretoria|centurion|hatfield|menlyn|arcadia|soshanguve|mamelodi|mogale|krugersdorp|vanderbijlpark|vereeniging|durban|umhlanga|pinetown|pietermaritzburg|cape\s*town|bellville|stellenbosch|paarl|gqeberha|port\s*elizabeth|east\s*london|bloemfontein|polokwane|mbombela|nelspruit|rustenburg|kimberley|mahikeng|witbank|emalahleni|secunda|gauteng|kwazulu[\s-]*natal|western\s*cape|eastern\s*cape|free\s*state|limpopo|mpumalanga|north\s*west|northern\s*cape)\b/i;
+
+/**
+ * Known field labels used to split multi-column horizontal OCR lines so one
+ * field never swallows another field printed to its right on the same row.
+ */
+const INLINE_SPLIT_LABELS = [
+  'Full Names?',
+  'Employee Name',
+  'Applicant Name',
+  'Candidate Name',
+  'Name\\s*(?:&|and)\\s*Surname',
+  'First Names?',
+  'Forenames?',
+  'Given Names?',
+  'Surname',
+  'Last Name',
+  'Employee\\s*(?:Number|No\\.?|ID|Code)',
+  'Staff\\s*(?:Number|No\\.?|ID)',
+  'Personnel\\s*(?:Number|No\\.?)',
+  'Identity\\s*(?:Number|No\\.?)',
+  'National\\s*ID(?:\\s*No\\.?)?',
+  'SA\\s*ID(?:\\s*No\\.?)?',
+  'ID\\s*(?:Number|No\\.?)',
+  'Passport\\s*(?:Number|No\\.?)',
+  'Date\\s*of\\s*Birth',
+  'Birth\\s*Date',
+  'Birthdate',
+  'D\\.?O\\.?B\\.?',
+  'Email\\s*Address',
+  'Work\\s*Email',
+  'Personal\\s*Email',
+  'E-?mail',
+  'Contact\\s*(?:Number|No\\.?)',
+  'Phone\\s*(?:Number|No\\.?)?',
+  'Mobile\\s*(?:Number|No\\.?)?',
+  'Cell(?:phone)?(?:\\s*(?:Number|No\\.?))?',
+  'Telephone(?:\\s*(?:Number|No\\.?))?',
+  'Tel(?:\\s*No\\.?)?',
+  'Home\\s*Address',
+  'Residential\\s*Address',
+  'Physical\\s*Address',
+  'Street\\s*Address',
+  'Postal\\s*Address',
+  'Current\\s*Address',
+  'Address',
+  'Emergency\\s*Contact(?:\\s*Name)?',
+  'Next\\s*of\\s*Kin(?:\\s*Name)?',
+  'Emergency\\s*(?:Phone|Number|No\\.?|Tel|Cell)',
+  'Job\\s*Title',
+  'Job\\s*Role',
+  'Current\\s*Role',
+  'Position',
+  'Designation',
+  'Occupation',
+  'Department',
+  'Reports\\s*To',
+  'Line\\s*Manager',
+  'Manager',
+  'Supervisor',
+  'Employment\\s*Type',
+  'Contract\\s*Type',
+  'Start(?:ing)?\\s*Date',
+  'Commencement\\s*Date',
+  'Date\\s*of\\s*Commencement',
+  'Date\\s*Joined',
+  'Joining\\s*Date',
+  'Date\\s*Hired',
+  'Hire\\s*Date',
+  'Date\\s*of\\s*Engagement',
+  'Engagement\\s*Date',
+  'Date\\s*of\\s*Appointment',
+  'Appointment\\s*Date',
+  'Effective\\s*Date',
+  'Date\\s*Employed',
+  'Branch',
+  'Office\\s*Location',
+  'Monthly\\s*Salary',
+  'Basic\\s*Salary',
+  'Gross\\s*Salary',
+  'Remuneration',
+  'Salary',
+  'CTC',
+  'Employment\\s*Status',
+  'Key\\s*Skills',
+  'Skills',
+  'Competencies',
+  'Home\\s*Language',
+  'Languages?',
+];
+
+const INLINE_LABEL_SPLIT_RE = new RegExp(
+  `(?:\\s{2,}|\\s*[|•·;]\\s*)(?=(?:${INLINE_SPLIT_LABELS.join('|')})\\s*[:\\-–])`,
+  'gi'
+);
+
+const TABULAR_GAP_LABEL_RE = new RegExp(
+  `\\s{2,}(?=(?:${INLINE_SPLIT_LABELS.join('|')})\\b)`,
+  'gi'
+);
+
+const ANY_FIELD_LABEL_START_RE = new RegExp(
+  `^(?:${INLINE_SPLIT_LABELS.join('|')}|Name|Role|Title|Post|Status|Bio|Summary|About|Sex|Gender|Nationality|Citizenship|Marital\\s*Status|Tax\\s*(?:Number|No\\.?)|Bank|Account\\s*(?:Number|No\\.?))\\b`,
+  'i'
+);
+
+function escapeRegExp(str: string): string {
+  return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
 
 function toTitleCase(input: string): string {
   return input
@@ -149,12 +290,29 @@ function toTitleCase(input: string): string {
     .split(' ')
     .map(word => {
       if (!word) return '';
-      if (word.length <= 2 && /^[A-Z]+$/.test(word)) {
-        return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
-      }
       return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
     })
     .join(' ');
+}
+
+function cleanHonorifics(name: string): string {
+  return name
+    .replace(/^(?:mr|mrs|ms|miss|dr|prof|adv|rev)\.?\s+/i, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+/**
+ * Repairs common camera OCR confusions inside digit sequences (O->0, I/l->1, etc.).
+ */
+export function healOcrDigits(raw: string): string {
+  return raw.replace(
+    /\b(?=[0-9OoQDIl|!\s-]*\d)[0-9OoQDIl|!]+(?:[\s-][0-9OoQDIl|!]+)*\b/g,
+    segment =>
+      segment
+        .replace(/[OoQD]/g, '0')
+        .replace(/[Il|!]/g, '1')
+  );
 }
 
 function isValidCalendarDate(year: number, month: number, day: number): boolean {
@@ -169,15 +327,35 @@ function isValidCalendarDate(year: number, month: number, day: number): boolean 
   );
 }
 
+function isValidLuhn13(digits: string): boolean {
+  if (!/^\d{13}$/.test(digits)) return false;
+  let sum = 0;
+  for (let i = 0; i < 13; i += 1) {
+    let d = Number(digits[i]);
+    if (i % 2 === 1) {
+      d *= 2;
+      if (d > 9) d -= 9;
+    }
+    sum += d;
+  }
+  return sum % 10 === 0;
+}
+
 /**
- * Parses common South African & ISO date strings into YYYY-MM-DD.
+ * Parses South African, ISO, verbal, dot-separated, and OCR-noisy dates into YYYY-MM-DD.
  */
 export function parseFlexibleDate(raw: string): string | null {
-  const cleaned = raw.trim().replace(/[,]/g, ' ').replace(/\s+/g, ' ');
-  if (!cleaned) return null;
+  const healed = healOcrDigits(raw)
+    .trim()
+    .replace(/[,]/g, ' ')
+    .replace(/(\d)(?:st|nd|rd|th)\b/gi, '$1')
+    .replace(/\s+/g, ' ');
+  if (!healed) return null;
 
-  // YYYY-MM-DD or YYYY/MM/DD
-  const iso = cleaned.match(/\b(19\d{2}|20\d{2})[-/.](0?[1-9]|1[0-2])[-/.](0?[1-9]|[12]\d|3[01])\b/);
+  // YYYY-MM-DD, YYYY/MM/DD, YYYY.MM.DD
+  const iso = healed.match(
+    /\b(19\d{2}|20\d{2})\s*[-/.]\s*(0?[1-9]|1[0-2])\s*[-/.]\s*(0?[1-9]|[12]\d|3[01])\b/
+  );
   if (iso) {
     const y = Number(iso[1]);
     const m = Number(iso[2]);
@@ -187,9 +365,9 @@ export function parseFlexibleDate(raw: string): string | null {
     }
   }
 
-  // DD MMM YYYY (e.g. 12 AUG 1994 or 05 November 2026)
-  const dmyWords = cleaned.match(
-    /\b(0?[1-9]|[12]\d|3[01])[\s/-]+([A-Za-z]{3,9})[\s/-]+(19\d{2}|20\d{2})\b/
+  // DD MMM YYYY or DD-MMM-YYYY (e.g. 12 AUG 1994, 01-Nov-2026, 5 November 2026)
+  const dmyWords = healed.match(
+    /\b(0?[1-9]|[12]\d|3[01])[\s./-]+([A-Za-z]{3,9})[\s./-]+(19\d{2}|20\d{2})\b/
   );
   if (dmyWords) {
     const d = Number(dmyWords[1]);
@@ -200,9 +378,9 @@ export function parseFlexibleDate(raw: string): string | null {
     }
   }
 
-  // MMM DD YYYY (e.g. Aug 12 1994)
-  const mdyWords = cleaned.match(
-    /\b([A-Za-z]{3,9})[\s/-]+(0?[1-9]|[12]\d|3[01])[\s/-]+(19\d{2}|20\d{2})\b/
+  // MMM DD YYYY (e.g. Aug 12 1994, November 1, 2026)
+  const mdyWords = healed.match(
+    /\b([A-Za-z]{3,9})[\s./-]+(0?[1-9]|[12]\d|3[01])[\s./-]+(19\d{2}|20\d{2})\b/
   );
   if (mdyWords) {
     const mStr = MONTHS[mdyWords[1].toLowerCase()];
@@ -213,9 +391,9 @@ export function parseFlexibleDate(raw: string): string | null {
     }
   }
 
-  // DD/MM/YYYY or DD-MM-YYYY (South African standard DMY)
-  const dmyNumeric = cleaned.match(
-    /\b(0?[1-9]|[12]\d|3[01])[/-](0?[1-9]|1[0-2])[/-](19\d{2}|20\d{2})\b/
+  // DD/MM/YYYY, DD-MM-YYYY, DD.MM.YYYY (South African standard DMY)
+  const dmyNumeric = healed.match(
+    /\b(0?[1-9]|[12]\d|3[01])\s*[/. -]\s*(0?[1-9]|1[0-2])\s*[/. -]\s*(19\d{2}|20\d{2})\b/
   );
   if (dmyNumeric) {
     const d = Number(dmyNumeric[1]);
@@ -226,127 +404,329 @@ export function parseFlexibleDate(raw: string): string | null {
     }
   }
 
+  // DD/MM/YY (2-digit year when clearly separated by slashes)
+  const dmyShort = healed.match(
+    /\b(0[1-9]|[12]\d|3[01])[/-](0[1-9]|1[0-2])[/-](\d{2})\b/
+  );
+  if (dmyShort) {
+    const d = Number(dmyShort[1]);
+    const m = Number(dmyShort[2]);
+    const yy = Number(dmyShort[3]);
+    const currentYY = new Date().getFullYear() % 100;
+    const y = yy <= currentYY + 4 ? 2000 + yy : 1900 + yy;
+    if (isValidCalendarDate(y, m, d)) {
+      return `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+    }
+  }
+
   return null;
 }
 
+function extractAllDatesInOrder(rawText: string): string[] {
+  const healed = healOcrDigits(rawText);
+  const tokenRe =
+    /\b(?:(?:19|20)\d{2}\s*[-/.]\s*\d{1,2}\s*[-/.]\s*\d{1,2}|\d{1,2}[\s./-]+[A-Za-z]{3,9}[\s./-]+(?:19|20)\d{2}|[A-Za-z]{3,9}[\s./-]+\d{1,2}[\s,./-]+(?:19|20)\d{2}|\d{1,2}\s*[/. -]\s*\d{1,2}\s*[/. -]\s*(?:19|20)\d{2})\b/g;
+
+  const found: string[] = [];
+  for (const m of healed.matchAll(tokenRe)) {
+    const parsed = parseFlexibleDate(m[0]);
+    if (parsed && !found.includes(parsed)) {
+      found.push(parsed);
+    }
+  }
+  return found;
+}
+
 /**
- * Validates a 13-digit South African ID number (YYMMDDSSSSCAZ) and extracts DOB.
+ * Hunts down a 13-digit South African ID number anywhere in the text — even
+ * with spaces between digits (boxed forms) or camera O/0/I/1 noise — and
+ * derives the ISO Date of Birth from YYMMDD.
  */
 export function parseSouthAfricanId(rawText: string): {
   idNumber: string;
   dob: string;
 } | null {
-  const candidates = rawText.matchAll(
-    /(?<!\d)(\d{2})(0[1-9]|1[0-2])(0[1-9]|[12]\d|3[01])[\s-]?(\d{4})[\s-]?([01]\d{2})(?!\d)/g
-  );
-
+  const healed = healOcrDigits(rawText);
+  // Match 13 digits allowing single spaces or hyphens between groups or individual boxed digits
+  const pattern = /(?<!\d)(?:\d[\s-]?){12}\d(?!\d)/g;
   const currentTwoDigitYear = new Date().getFullYear() % 100;
 
-  for (const match of candidates) {
-    const digits = `${match[1]}${match[2]}${match[3]}${match[4]}${match[5]}`;
+  let bestValid: { idNumber: string; dob: string; luhn: boolean } | null = null;
+
+  for (const match of healed.matchAll(pattern)) {
+    const digits = match[0].replace(/\D/g, '');
     if (digits.length !== 13) continue;
 
-    const yy = Number(match[1]);
-    const mm = Number(match[2]);
-    const dd = Number(match[3]);
-    // Assume adult/working-age century cutoff (e.g. <= currentYear - 14 -> 2000s, else 1900s)
+    const yy = Number(digits.slice(0, 2));
+    const mm = Number(digits.slice(2, 4));
+    const dd = Number(digits.slice(4, 6));
+    const citizenship = digits[10];
+
+    if (citizenship !== '0' && citizenship !== '1' && citizenship !== '2') {
+      continue;
+    }
+
     const century = yy <= Math.max(0, currentTwoDigitYear - 14) ? 2000 : 1900;
     const fullYear = century + yy;
-
     if (!isValidCalendarDate(fullYear, mm, dd)) {
       continue;
     }
 
     const dob = `${fullYear}-${String(mm).padStart(2, '0')}-${String(dd).padStart(2, '0')}`;
-    return { idNumber: digits, dob };
+    const luhn = isValidLuhn13(digits);
+
+    if (luhn) {
+      return { idNumber: digits, dob };
+    }
+    if (!bestValid) {
+      bestValid = { idNumber: digits, dob, luhn: false };
+    }
   }
 
-  return null;
+  return bestValid ? { idNumber: bestValid.idNumber, dob: bestValid.dob } : null;
 }
 
-function findLabeledValue(lines: string[], labelPatterns: RegExp[]): string | null {
-  for (let i = 0; i < lines.length; i += 1) {
-    const line = lines[i];
-    for (const pattern of labelPatterns) {
-      const inlineMatch = line.match(
-        new RegExp(`^(?:${pattern.source})\\s*[:\\-–]\\s*(.+)$`, 'i')
-      );
-      if (inlineMatch && inlineMatch[1].trim()) {
-        return inlineMatch[1].trim();
-      }
-      // Also support Smart ID / vertical label where label is on line i and value is on line i+1
-      if (new RegExp(`^(?:${pattern.source})\\s*:?$`, 'i').test(line)) {
-        const nextLine = lines[i + 1]?.trim();
-        if (
-          nextLine &&
-          !/^[A-Za-z\s]{2,24}:$/.test(nextLine) &&
-          nextLine.length <= 120
-        ) {
-          return nextLine;
+/**
+ * Splits multi-column rows into clean individual segments while preserving
+ * original line order.
+ */
+function expandStructuredLines(rawText: string): string[] {
+  const rawLines = rawText.replace(/\r\n/g, '\n').split('\n');
+  const expanded: string[] = [];
+
+  for (const rawLine of rawLines) {
+    const tabNormalized = rawLine.replace(/\t+/g, '   ').trim();
+    if (!tabNormalized) continue;
+
+    const firstPass = tabNormalized.split(INLINE_LABEL_SPLIT_RE);
+    for (const chunk of firstPass) {
+      const secondPass = chunk.split(TABULAR_GAP_LABEL_RE);
+      for (const piece of secondPass) {
+        const cleaned = piece.replace(/[|•·]+/g, ' ').replace(/\s+/g, ' ').trim();
+        if (cleaned) {
+          expanded.push(cleaned);
         }
       }
     }
   }
+
+  return expanded;
+}
+
+/**
+ * Finds a labeled value whether written as `Label: Value`, `Label - Value`,
+ * `Label   Value` (printed form without colon), or `Label` on line i and
+ * `Value` on line i+1.
+ */
+function findLabeledValue(
+  lines: string[],
+  labelPatterns: RegExp[],
+  options?: { allowMultiline?: number }
+): string | null {
+  const maxExtraLines = options?.allowMultiline ?? 0;
+
+  const joinParts = (parts: string[]) =>
+    parts
+      .map(p => p.replace(/,+\s*$/, '').trim())
+      .filter(Boolean)
+      .join(', ');
+
+  for (const pattern of labelPatterns) {
+    for (let i = 0; i < lines.length; i += 1) {
+      const line = lines[i];
+
+      // 1. Explicit delimiter (:, ;, -, –, =) anywhere from start of segment
+      const delimited = line.match(
+        new RegExp(`^(?:${pattern.source})\\s*[:;=\\-–]+\\s*(.+)$`, 'i')
+      );
+      if (delimited && delimited[1].trim()) {
+        const valParts = [delimited[1].trim()];
+        for (let k = 1; k <= maxExtraLines; k += 1) {
+          const next = lines[i + k]?.trim();
+          if (!next || ANY_FIELD_LABEL_START_RE.test(next) || /@/.test(next)) break;
+          valParts.push(next);
+        }
+        return joinParts(valParts);
+      }
+
+      // 2. Vertical label (label alone on line i, value on line i+1)
+      if (new RegExp(`^(?:${pattern.source})\\s*[:;=\\-–]?$`, 'i').test(line)) {
+        const nextLine = lines[i + 1]?.trim();
+        if (
+          nextLine &&
+          !ANY_FIELD_LABEL_START_RE.test(nextLine) &&
+          nextLine.length <= 160
+        ) {
+          const valParts = [nextLine];
+          for (let k = 2; k <= 1 + maxExtraLines; k += 1) {
+            const extra = lines[i + k]?.trim();
+            if (!extra || ANY_FIELD_LABEL_START_RE.test(extra) || /@/.test(extra)) break;
+            valParts.push(extra);
+          }
+          return joinParts(valParts);
+        }
+      }
+
+      // 3. Colon-less form box (e.g. "ID Number 9408125800087" or "Start Date 01/11/2026")
+      const spaceSeparated = line.match(
+        new RegExp(`^(?:${pattern.source})\\s+([^:;=]{2,120})$`, 'i')
+      );
+      if (spaceSeparated && spaceSeparated[1].trim()) {
+        const candidate = spaceSeparated[1].trim();
+        if (!ANY_FIELD_LABEL_START_RE.test(candidate)) {
+          return candidate;
+        }
+      }
+    }
+  }
+
   return null;
 }
 
 function cleanPhoneCandidate(raw: string): string | null {
-  const match = raw.match(/(?:\+\d{1,3}[\s()-]*|0)(?:\d[\s()-]*){8,12}/);
+  const healed = healOcrDigits(raw);
+  const match = healed.match(
+    /(?:\+?\s*27[\s().-]*|0)(?:[1-8]\d)(?:[\s().-]*\d){7}\b|(?:\+\d{1,3}[\s().-]*)(?:\d[\s().-]*){7,12}\b/
+  );
   if (!match) return null;
-  const compact = match[0].trim().replace(/\s+/g, ' ');
-  const digitCount = compact.replace(/\D/g, '').length;
-  if (digitCount < 9 || digitCount > 15) return null;
-  return compact;
+
+  const rawToken = match[0].trim();
+  const digitsOnly = rawToken.replace(/\D/g, '');
+
+  // Format South African numbers cleanly (+27 XX XXX XXXX or 0XX XXX XXXX)
+  if (digitsOnly.length === 11 && digitsOnly.startsWith('27')) {
+    return `+27 ${digitsOnly.slice(2, 4)} ${digitsOnly.slice(4, 7)} ${digitsOnly.slice(7)}`;
+  }
+  if (digitsOnly.length === 10 && digitsOnly.startsWith('0')) {
+    return `${digitsOnly.slice(0, 3)} ${digitsOnly.slice(3, 6)} ${digitsOnly.slice(6)}`;
+  }
+  if (digitsOnly.length >= 9 && digitsOnly.length <= 15) {
+    return rawToken.replace(/\s+/g, ' ');
+  }
+  return null;
 }
 
-function escapeRegExp(str: string): string {
-  return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+function extractAllEmails(rawText: string): string[] {
+  // Repair camera OCR spaces around @ and dots (e.g. "sipho . nkosi @ company . co . za")
+  const repaired = rawText.replace(
+    /([A-Za-z0-9_%+-]+(?:\s*\.\s*[A-Za-z0-9_%+-]+)*)\s*@\s*([A-Za-z0-9-]+(?:\s*\.\s*[A-Za-z]{2,})+)/g,
+    (_full, local: string, domain: string) =>
+      `${local.replace(/\s+/g, '')}@${domain.replace(/\s+/g, '')}`
+  );
+
+  const matches = Array.from(
+    repaired.matchAll(/[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/g)
+  ).map(m => m[0].toLowerCase().replace(/[.,;:)]+$/, ''));
+
+  return Array.from(new Set(matches));
+}
+
+function detectUnlabeledAddress(lines: string[]): string | null {
+  for (let i = 0; i < lines.length; i += 1) {
+    const line = lines[i];
+    if (ANY_FIELD_LABEL_START_RE.test(line) || /@/.test(line)) continue;
+
+    if (SA_STREET_RE.test(line)) {
+      const parts = [line];
+      const alreadyHasPostal = /\b\d{4}\s*$/.test(line);
+      const next1 = lines[i + 1];
+      if (
+        !alreadyHasPostal &&
+        next1 &&
+        next1.length <= 65 &&
+        !/:/.test(next1) &&
+        !ANY_FIELD_LABEL_START_RE.test(next1) &&
+        !/@/.test(next1) &&
+        (SA_LOCALITY_RE.test(next1) || /\b(?!19\d{2}|20\d{2})\d{4}\b/.test(next1))
+      ) {
+        parts.push(next1);
+        const next2 = lines[i + 2];
+        if (
+          next2 &&
+          !ANY_FIELD_LABEL_START_RE.test(next2) &&
+          /^\d{4}$/.test(next2.trim())
+        ) {
+          parts.push(next2.trim());
+        }
+      }
+      return parts.join(', ');
+    }
+
+    // Locality + 4-digit SA postal code line (e.g. "Orlando West, Soweto, 1804")
+    if (SA_LOCALITY_RE.test(line) && /\b\d{4}\b/.test(line) && line.length <= 110) {
+      const prev = lines[i - 1];
+      if (
+        prev &&
+        !ANY_FIELD_LABEL_START_RE.test(prev) &&
+        !/@/.test(prev) &&
+        /\d/.test(prev) &&
+        prev.length <= 80
+      ) {
+        return `${prev}, ${line}`;
+      }
+      return line;
+    }
+  }
+  return null;
 }
 
 export function extractEmployeeFieldsFromOcrText(
   rawText: string,
   options: {
     branches: Branch[];
-    departments: string[];
+    departments?: string[];
     customFields: CustomField[];
   }
 ): EmployeeOcrExtraction {
   const normalizedText = rawText.replace(/\r\n/g, '\n');
-  const lines = normalizedText
-    .split('\n')
-    .map(l => l.replace(/[|•·]/g, ' ').replace(/\s+/g, ' ').trim())
-    .filter(Boolean);
+  const lines = expandStructuredLines(normalizedText);
 
   const values: Partial<EmployeeFormDraft> & { custom: Record<string, string> } = {
     custom: {},
   };
   const filled = new Set<string>();
 
-  // 1. South African ID / Identity Number & DOB
+  // =========================================================================
+  // PRIORITY 1 & 3: ID NUMBER + DATE OF BIRTH
+  // =========================================================================
   const saId = parseSouthAfricanId(normalizedText);
   const labeledId = findLabeledValue(lines, [
-    /id\s*(?:number|no\.?)/,
-    /identity\s*(?:number|no\.?)/,
+    /(?:sa\s*)?id(?:entity)?\s*(?:number|no\.?|num|#)/,
+    /national\s*id(?:\s*(?:number|no\.?))?/,
+    /identification\s*(?:number|no\.?)/,
     /passport\s*(?:number|no\.?)/,
+    /\bid\b/,
   ]);
+
   if (saId) {
     values.idNumber = saId.idNumber;
     filled.add('idNumber');
     values.dob = saId.dob;
     filled.add('dob');
   } else if (labeledId) {
-    const cleanedId = labeledId.replace(/[^A-Za-z0-9-]/g, '');
-    if (cleanedId.length >= 6) {
-      values.idNumber = cleanedId;
+    const saFromLabeled = parseSouthAfricanId(labeledId);
+    if (saFromLabeled) {
+      values.idNumber = saFromLabeled.idNumber;
       filled.add('idNumber');
+      values.dob = saFromLabeled.dob;
+      filled.add('dob');
+    } else {
+      const cleanedId = healOcrDigits(labeledId)
+        .replace(/[^A-Za-z0-9-]/g, '')
+        .trim();
+      if (cleanedId.length >= 6 && cleanedId.length <= 24 && /\d{4,}/.test(cleanedId)) {
+        values.idNumber = cleanedId;
+        filled.add('idNumber');
+      }
     }
   }
 
-  // Explicit DOB overrides or supplements ID-derived DOB
   const labeledDob = findLabeledValue(lines, [
-    /date\s*of\s*birth/,
-    /birth\s*date/,
-    /d\.?o\.?b\.?/,
+    /date\s*of\s*b[i1l]rth/,
+    /b[i1l]rth\s*date/,
+    /b[i1l]rthdate/,
+    /d\.?\s*o\.?\s*b\.?/,
+    /born(?:\s*on)?/,
   ]);
   if (labeledDob) {
     const parsedDob = parseFlexibleDate(labeledDob);
@@ -356,87 +736,125 @@ export function extractEmployeeFieldsFromOcrText(
     }
   }
 
-  // 2. Full Name (Labeled -> SA Smart ID Surname + Names -> CV Header heuristic)
+  const allDocumentDates = extractAllDatesInOrder(normalizedText);
+  if (!filled.has('dob')) {
+    const birthEraDate = allDocumentDates.find(dt => {
+      const yr = Number(dt.slice(0, 4));
+      return yr >= 1945 && yr <= 2008;
+    });
+    if (birthEraDate) {
+      values.dob = birthEraDate;
+      filled.add('dob');
+    }
+  }
+
+  // =========================================================================
+  // PRIORITY 4: FULL NAME
+  // =========================================================================
   const labeledFullName = findLabeledValue(lines, [
     /full\s*name(?:s)?/,
-    /employee\s*name/,
+    /employee(?:'s)?\s*name/,
+    /staff\s*name/,
+    /applicant(?:'s)?\s*name/,
+    /candidate(?:'s)?\s*name/,
     /name\s*(?:&|and)\s*surname/,
-    /candidate\s*name/,
   ]);
-  const surnameVal = findLabeledValue(lines, [/surname/, /last\s*name/, /family\s*name/]);
+  const surnameVal = findLabeledValue(lines, [
+    /surname/,
+    /last\s*name/,
+    /family\s*name/,
+  ]);
   const forenamesVal = findLabeledValue(lines, [
     /forenames?/,
     /first\s*names?/,
     /given\s*names?/,
+    /christian\s*names?/,
     /names/,
   ]);
 
+  let fullNameLineIndex = -1;
+
   if (labeledFullName && /[A-Za-z]{2,}/.test(labeledFullName)) {
-    values.fullName = /^[A-Z\s'-]+$/.test(labeledFullName)
-      ? toTitleCase(labeledFullName)
-      : labeledFullName;
+    const cleaned = cleanHonorifics(
+      labeledFullName.replace(/[^A-Za-z\s'-]/g, ' ')
+    );
+    values.fullName = /^[A-Z\s'-]+$/.test(cleaned) ? toTitleCase(cleaned) : cleaned;
     filled.add('fullName');
   } else if (surnameVal && forenamesVal) {
-    const combined = `${forenamesVal} ${surnameVal}`.replace(/[^A-Za-z\s'-]/g, ' ');
+    const combined = cleanHonorifics(
+      `${forenamesVal} ${surnameVal}`.replace(/[^A-Za-z\s'-]/g, ' ')
+    );
     values.fullName = toTitleCase(combined);
     filled.add('fullName');
   } else {
     const plainName = findLabeledValue(lines, [/name/]);
-    if (plainName && /^[A-Za-z][A-Za-z\s'-]{2,60}$/.test(plainName)) {
-      values.fullName = /^[A-Z\s'-]+$/.test(plainName)
-        ? toTitleCase(plainName)
-        : plainName;
+    if (
+      plainName &&
+      /^[A-Za-z][A-Za-z\s.'-]{2,60}$/.test(plainName) &&
+      !ROLE_KEYWORDS_RE.test(plainName)
+    ) {
+      const cleaned = cleanHonorifics(plainName);
+      values.fullName = /^[A-Z\s'-]+$/.test(cleaned)
+        ? toTitleCase(cleaned)
+        : cleaned;
       filled.add('fullName');
     } else {
-      // Top-of-document CV / Business card name heuristic
-      for (const candidateLine of lines.slice(0, 6)) {
+      for (let idx = 0; idx < Math.min(12, lines.length); idx += 1) {
+        const candidateLine = cleanHonorifics(lines[idx]);
         if (/[@:\d]/.test(candidateLine)) continue;
         const words = candidateLine.split(/\s+/);
         if (words.length < 2 || words.length > 4) continue;
-        const allAlpha = words.every(w => /^[A-Za-z'-]{2,22}$/.test(w));
-        if (!allAlpha) continue;
-        const hasStopword = words.some(w => HEADER_STOPWORDS.has(w.toUpperCase()));
-        if (hasStopword) continue;
+        if (!words.every(w => /^[A-Za-z'-]{2,22}$/.test(w))) continue;
+        if (words.some(w => HEADER_STOPWORDS.has(w.toUpperCase()))) continue;
+        if (ROLE_KEYWORDS_RE.test(candidateLine)) continue;
+
         values.fullName = toTitleCase(candidateLine);
         filled.add('fullName');
+        fullNameLineIndex = idx;
         break;
       }
     }
   }
 
-  // 3. Employee Number
-  const labeledEmpNo = findLabeledValue(lines, [
-    /employee\s*(?:number|no\.?|id|code)/,
-    /staff\s*(?:number|no\.?|id)/,
-    /personnel\s*(?:number|no\.?)/,
+  // =========================================================================
+  // PRIORITY 5: EMAIL ADDRESS
+  // =========================================================================
+  const labeledEmail = findLabeledValue(lines, [
+    /(?:work\s*|personal\s*)?e-?mail(?:\s*address)?/,
   ]);
-  const inlinePfMatch = normalizedText.match(/\b(?:PF|EMP)[-/]?\d{2,6}\b/i);
-  if (labeledEmpNo && /[A-Za-z0-9]{2,20}/.test(labeledEmpNo)) {
-    values.employeeNumber = labeledEmpNo.split(/\s+/)[0];
-    filled.add('employeeNumber');
-  } else if (inlinePfMatch) {
-    values.employeeNumber = inlinePfMatch[0].toUpperCase();
-    filled.add('employeeNumber');
+  if (labeledEmail) {
+    const extracted = extractAllEmails(labeledEmail);
+    if (extracted.length > 0) {
+      values.email = extracted[0];
+      filled.add('email');
+    }
+  }
+  if (!filled.has('email')) {
+    const allEmails = extractAllEmails(normalizedText);
+    if (allEmails.length > 0) {
+      values.email = allEmails[0];
+      filled.add('email');
+    }
   }
 
-  // 4. Email Address
-  const emailMatches = Array.from(
-    normalizedText.matchAll(/[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/g)
-  ).map(m => m[0].toLowerCase());
-  if (emailMatches.length > 0) {
-    values.email = emailMatches[0];
-    filled.add('email');
-  }
-
-  // 5. Phone & Emergency Contact / Emergency Phone
+  // =========================================================================
+  // PRIORITY 2: CONTACT NUMBER (+ Emergency Contact / Emergency Phone)
+  // =========================================================================
   const labeledEmergencyName = findLabeledValue(lines, [
     /emergency\s*contact(?:\s*name)?/,
     /next\s*of\s*kin(?:\s*name)?/,
   ]);
   if (labeledEmergencyName) {
-    // Strip trailing phone if written on same line (e.g. "Sipho Moyo - 082 555 0192")
-    const nameOnly = labeledEmergencyName
-      .replace(/(?:\+\d{1,3}[\s()-]*|0)(?:\d[\s()-]*){8,12}/g, '')
+    const inlineEmergPhone = cleanPhoneCandidate(labeledEmergencyName);
+    if (inlineEmergPhone) {
+      values.emergencyPhone = inlineEmergPhone;
+      filled.add('emergencyPhone');
+    }
+    const nameOnly = healOcrDigits(labeledEmergencyName)
+      .replace(
+        /(?:\+?\s*27[\s().-]*|0)(?:[1-8]\d)(?:[\s().-]*\d){7}\b/g,
+        ''
+      )
       .trim()
       .replace(/[-–,/:]+$/, '')
       .trim();
@@ -444,15 +862,10 @@ export function extractEmployeeFieldsFromOcrText(
       values.emergencyName = nameOnly;
       filled.add('emergencyName');
     }
-    const inlineEmergPhone = cleanPhoneCandidate(labeledEmergencyName);
-    if (inlineEmergPhone) {
-      values.emergencyPhone = inlineEmergPhone;
-      filled.add('emergencyPhone');
-    }
   }
 
   const labeledEmergencyPhone = findLabeledValue(lines, [
-    /emergency\s*(?:phone|number|no\.?|tel|cell|mobile)/,
+    /emergency\s*(?:phone|number|no\.?|tel|cell|mobile|contact\s*no\.?)/,
     /next\s*of\s*kin\s*(?:phone|number|tel|cell)/,
   ]);
   if (labeledEmergencyPhone) {
@@ -464,7 +877,8 @@ export function extractEmployeeFieldsFromOcrText(
   }
 
   const labeledPrimaryPhone = findLabeledValue(lines, [
-    /(?:contact|phone|mobile|cell(?:phone)?|telephone|tel)\s*(?:number|no\.?)?/,
+    /contact\s*(?:number|no\.?|details?)?/,
+    /(?:primary\s*)?(?:phone|mobile|cell(?:phone)?|telephone|tel|whatsapp)\s*(?:number|no\.?)?/,
   ]);
   if (labeledPrimaryPhone) {
     const cleaned = cleanPhoneCandidate(labeledPrimaryPhone);
@@ -475,71 +889,159 @@ export function extractEmployeeFieldsFromOcrText(
   }
 
   if (!filled.has('phone')) {
-    // Find any standalone phone number that isn't the ID number or emergencyPhone
-    const textWithoutIds = values.idNumber
-      ? normalizedText.replaceAll(values.idNumber, ' ')
-      : normalizedText;
-    const allPhones = Array.from(
-      textWithoutIds.matchAll(/(?:\+27|0)[1-8]\d(?:[\s()-]*\d){7}\b/g)
-    ).map(m => m[0].trim().replace(/\s+/g, ' '));
-
-    for (const candidate of allPhones) {
-      if (candidate !== values.emergencyPhone) {
-        values.phone = candidate;
+    let textWithoutIds = healOcrDigits(normalizedText);
+    if (values.idNumber) {
+      textWithoutIds = textWithoutIds.replace(
+        new RegExp(values.idNumber.split('').join('[\\s-]?'), 'g'),
+        ' '
+      );
+    }
+    const allPhoneMatches = Array.from(
+      textWithoutIds.matchAll(
+        /(?:\+?\s*27[\s().-]*|0)(?:[1-8]\d)(?:[\s().-]*\d){7}\b/g
+      )
+    );
+    for (const m of allPhoneMatches) {
+      const formatted = cleanPhoneCandidate(m[0]);
+      if (formatted && formatted !== values.emergencyPhone) {
+        values.phone = formatted;
         filled.add('phone');
         break;
       }
     }
   }
 
-  // 6. Home Address
-  const labeledAddress = findLabeledValue(lines, [
-    /(?:home|residential|physical|street|postal)\s*address/,
-    /address/,
-  ]);
-  if (labeledAddress && labeledAddress.length >= 5) {
-    values.address = labeledAddress;
+  // =========================================================================
+  // PRIORITY 6: HOME ADDRESS (Multi-line labeled + Unlabeled SA street/city)
+  // =========================================================================
+  const labeledAddress = findLabeledValue(
+    lines,
+    [
+      /(?:home|residential|physical|street|current|permanent|postal)\s*address/,
+      /place\s*of\s*residence/,
+      /residential\s*street/,
+      /address/,
+    ],
+    { allowMultiline: 2 }
+  );
+  if (labeledAddress && labeledAddress.length >= 5 && !/@/.test(labeledAddress)) {
+    values.address = labeledAddress.replace(/\s*,\s*,/g, ', ').trim();
     filled.add('address');
+  } else {
+    const unlabeledAddr = detectUnlabeledAddress(lines);
+    if (unlabeledAddr) {
+      values.address = unlabeledAddr;
+      filled.add('address');
+    }
   }
 
-  // 7. Job Title
+  // =========================================================================
+  // PRIORITY 7: JOB TITLE (Labeled + Contract prose + CV subtitle)
+  // =========================================================================
   const labeledJobTitle = findLabeledValue(lines, [
     /job\s*title/,
-    /position/,
-    /role/,
+    /job\s*role/,
+    /current\s*(?:role|position)/,
+    /position(?:\s*title)?/,
     /designation/,
     /occupation/,
+    /post\s*held/,
+    /\brole\b/,
   ]);
   if (labeledJobTitle && /[A-Za-z]{2,}/.test(labeledJobTitle)) {
     values.jobTitle = labeledJobTitle;
     filled.add('jobTitle');
-  }
-
-  // 8. Department (only mark filled if explicitly found in OCR text)
-  const labeledDept = findLabeledValue(lines, [/department/, /division/, /team/]);
-  if (labeledDept) {
-    const matched = options.departments.find(
-      d =>
-        d.toLowerCase() === labeledDept.toLowerCase() ||
-        labeledDept.toLowerCase().includes(d.toLowerCase()) ||
-        d.toLowerCase().includes(labeledDept.toLowerCase())
-    );
-    if (matched) {
-      values.department = matched;
-      filled.add('department');
-    }
   } else {
-    for (const dept of options.departments) {
-      const re = new RegExp(`\\b${escapeRegExp(dept)}\\b`, 'i');
-      if (re.test(normalizedText)) {
-        values.department = dept;
-        filled.add('department');
-        break;
+    // Offer letter / employment contract prose
+    const proseRole = normalizedText.match(
+      /\b(?:appointed\s+(?:as|to\s+the\s+position\s+of)|employed\s+as(?:\s+a|\s+an)?|position\s+of|in\s+the\s+capacity\s+of)\s+([A-Z][A-Za-z0-9&/\s-]{2,48}?)(?:[.,;\n]|\s+(?:in|at|with|effective|commencing|starting|on|from)\b)/i
+    );
+    if (proseRole && proseRole[1].trim()) {
+      values.jobTitle = proseRole[1].trim();
+      filled.add('jobTitle');
+    } else if (fullNameLineIndex >= 0) {
+      // Check the 1-2 lines immediately beneath the person's name on a CV or badge
+      for (const offset of [1, 2]) {
+        const sub = lines[fullNameLineIndex + offset];
+        if (
+          sub &&
+          !ANY_FIELD_LABEL_START_RE.test(sub) &&
+          !/[@\d]/.test(sub) &&
+          sub.length <= 55 &&
+          ROLE_KEYWORDS_RE.test(sub)
+        ) {
+          values.jobTitle = sub;
+          filled.add('jobTitle');
+          break;
+        }
       }
     }
   }
 
-  // 9. Manager / Reports To
+  // =========================================================================
+  // PRIORITY 8: START DATE (Labeled + Contract prose + Chronological date)
+  // =========================================================================
+  const labeledStartDate = findLabeledValue(lines, [
+    /start(?:ing)?\s*date/,
+    /commencement\s*date/,
+    /date\s*of\s*commencement/,
+    /date\s*(?:joined|hired|engaged|employed|appointed)/,
+    /(?:joining|hire|engagement|appointment|effective|employment)\s*date/,
+    /employed\s*from/,
+  ]);
+  if (labeledStartDate) {
+    const parsedStart = parseFlexibleDate(labeledStartDate);
+    if (parsedStart) {
+      values.startDate = parsedStart;
+      filled.add('startDate');
+    }
+  }
+  if (!filled.has('startDate')) {
+    const proseStart = normalizedText.match(
+      /\b(?:commencing|starting|effective|joined|employed\s+from|start\s+on)\s*(?:on|from)?\s*[:\-]?\s*([0-9A-Za-z,./\s-]{6,25})/i
+    );
+    if (proseStart) {
+      const parsed = parseFlexibleDate(proseStart[1]);
+      if (parsed && parsed !== values.dob) {
+        values.startDate = parsed;
+        filled.add('startDate');
+      }
+    }
+  }
+  if (!filled.has('startDate')) {
+    // Any valid modern employment date (2010..2030) distinct from DOB
+    const dobYear = values.dob ? Number(values.dob.slice(0, 4)) : null;
+    const candidateStart = allDocumentDates.find(dt => {
+      if (dt === values.dob) return false;
+      const yr = Number(dt.slice(0, 4));
+      if (yr < 2010 || yr > 2030) return false;
+      if (dobYear !== null && yr - dobYear < 16) return false;
+      return true;
+    });
+    if (candidateStart) {
+      values.startDate = candidateStart;
+      filled.add('startDate');
+    }
+  }
+
+  // =========================================================================
+  // SECONDARY FIELDS: Employee No, Manager, Type, Branch, Salary, Bio, Skills
+  // =========================================================================
+  const labeledEmpNo = findLabeledValue(lines, [
+    /employee\s*(?:number|no\.?|id|code)/,
+    /staff\s*(?:number|no\.?|id)/,
+    /personnel\s*(?:number|no\.?)/,
+    /clock\s*(?:number|no\.?)/,
+  ]);
+  const inlinePfMatch = normalizedText.match(/\b(?:PF|EMP)[-/]?\d{2,6}\b/i);
+  if (labeledEmpNo && /[A-Za-z0-9]{2,20}/.test(labeledEmpNo)) {
+    values.employeeNumber = labeledEmpNo.split(/\s+/)[0];
+    filled.add('employeeNumber');
+  } else if (inlinePfMatch) {
+    values.employeeNumber = inlinePfMatch[0].toUpperCase();
+    filled.add('employeeNumber');
+  }
+
   const labeledManager = findLabeledValue(lines, [
     /reports\s*to/,
     /line\s*manager/,
@@ -551,41 +1053,31 @@ export function extractEmployeeFieldsFromOcrText(
     filled.add('manager');
   }
 
-  // 10. Employment Type
   const labeledEmpType = findLabeledValue(lines, [
     /employment\s*type/,
     /contract\s*type/,
     /work\s*type/,
   ]);
   const empTypeSource = labeledEmpType || normalizedText;
-  if (/\bfull[\s-]*time\b/i.test(empTypeSource)) {
+  if (
+    /\b(?:full[\s-]*time|permanent\s+(?:basis|position|role|employment|staff))\b/i.test(
+      empTypeSource
+    ) ||
+    (labeledEmpType && /\bpermanent\b/i.test(labeledEmpType))
+  ) {
     values.employmentType = 'Full-time' as EmploymentType;
     filled.add('employmentType');
   } else if (/\bpart[\s-]*time\b/i.test(empTypeSource)) {
     values.employmentType = 'Part-time' as EmploymentType;
     filled.add('employmentType');
-  } else if (/\b(?:fixed[\s-]*term|contractor|independent\s*contract)\b/i.test(empTypeSource) || (labeledEmpType && /\bcontract\b/i.test(labeledEmpType))) {
+  } else if (
+    /\b(?:fixed[\s-]*term|contractor|independent\s*contract)\b/i.test(empTypeSource) ||
+    (labeledEmpType && /\bcontract\b/i.test(labeledEmpType))
+  ) {
     values.employmentType = 'Contract' as EmploymentType;
     filled.add('employmentType');
   }
 
-  // 11. Start Date
-  const labeledStartDate = findLabeledValue(lines, [
-    /start\s*date/,
-    /commencement\s*date/,
-    /date\s*(?:joined|hired|engaged)/,
-    /hire\s*date/,
-    /effective\s*date/,
-  ]);
-  if (labeledStartDate) {
-    const parsedStart = parseFlexibleDate(labeledStartDate);
-    if (parsedStart) {
-      values.startDate = parsedStart;
-      filled.add('startDate');
-    }
-  }
-
-  // 12. Branch
   const labeledBranch = findLabeledValue(lines, [
     /branch/,
     /office\s*location/,
@@ -612,7 +1104,6 @@ export function extractEmployeeFieldsFromOcrText(
     }
   }
 
-  // 13. Monthly Salary
   const labeledSalary = findLabeledValue(lines, [
     /monthly\s*(?:salary|pay|remuneration|gross)/,
     /basic\s*(?:salary|pay)/,
@@ -638,7 +1129,6 @@ export function extractEmployeeFieldsFromOcrText(
     }
   }
 
-  // 14. Status
   const labeledStatus = findLabeledValue(lines, [/employment\s*status/, /status/]);
   if (labeledStatus) {
     if (/\bactive\b/i.test(labeledStatus)) {
@@ -656,24 +1146,21 @@ export function extractEmployeeFieldsFromOcrText(
     }
   }
 
-  // 15. Bio / Summary, Skills, Languages
-  const labeledBio = findLabeledValue(lines, [
-    /(?:short\s*)?bio/,
-    /professional\s*summary/,
-    /profile\s*summary/,
-    /about\s*me/,
-  ]);
+  const labeledBio = findLabeledValue(
+    lines,
+    [/(?:short\s*)?bio/, /professional\s*summary/, /profile\s*summary/, /about\s*me/],
+    { allowMultiline: 2 }
+  );
   if (labeledBio && labeledBio.length >= 8) {
     values.bio = labeledBio.slice(0, 350);
     filled.add('bio');
   }
 
-  const labeledSkills = findLabeledValue(lines, [
-    /key\s*skills/,
-    /core\s*skills/,
-    /skills/,
-    /competencies/,
-  ]);
+  const labeledSkills = findLabeledValue(
+    lines,
+    [/key\s*skills/, /core\s*skills/, /skills/, /competencies/],
+    { allowMultiline: 1 }
+  );
   if (labeledSkills && labeledSkills.length >= 2) {
     values.skills = labeledSkills;
     filled.add('skills');
@@ -696,7 +1183,6 @@ export function extractEmployeeFieldsFromOcrText(
     }
   }
 
-  // 16. Custom workspace fields
   for (const field of options.customFields) {
     const val = findLabeledValue(lines, [new RegExp(escapeRegExp(field.label), 'i')]);
     if (val) {
@@ -730,6 +1216,12 @@ export function extractEmployeeFieldsFromOcrText(
   ];
 
   const missingFields = allExpectedKeys.filter(k => !filled.has(k));
+  const priorityFound = PRIORITY_OCR_FIELDS.filter(f => filled.has(f.key)).map(
+    f => f.label
+  );
+  const priorityMissing = PRIORITY_OCR_FIELDS.filter(f => !filled.has(f.key)).map(
+    f => f.label
+  );
 
   const countFilled = (keys: readonly string[]) =>
     keys.filter(k => filled.has(k)).length;
@@ -742,6 +1234,8 @@ export function extractEmployeeFieldsFromOcrText(
     values,
     filledFields: Array.from(filled),
     missingFields,
+    priorityFound,
+    priorityMissing,
     blocks: {
       personal: {
         filledCount: personalFilled,
@@ -764,9 +1258,9 @@ export function extractEmployeeFieldsFromOcrText(
 }
 
 /**
- * Prepares a captured photo for OCR (contrast-stretched grayscale canvas up to
- * 2000px) and also returns a compact JPEG preview suitable for attaching to the
- * employee record without exceeding browser storage limits.
+ * Prepares a captured photo for OCR using percentile luminance normalization
+ * (preserving faint form labels and small text up to 2400px) and generates a
+ * compact JPEG preview for attaching to employee documents.
  */
 export async function preprocessImageForOcr(source: Blob | string): Promise<{
   ocrDataUrl: string;
@@ -788,10 +1282,13 @@ export async function preprocessImageForOcr(source: Blob | string): Promise<{
     const rawW = img.naturalWidth || img.width || 1;
     const rawH = img.naturalHeight || img.height || 1;
 
-    // Upscale tiny images slightly for better Tesseract glyph clarity; cap huge photos at 2000px
     const maxDim = Math.max(rawW, rawH);
     const ocrScale =
-      maxDim > 2000 ? 2000 / maxDim : maxDim < 900 ? Math.min(2, 1200 / maxDim) : 1;
+      maxDim > 2400
+        ? 2400 / maxDim
+        : maxDim < 1400
+        ? Math.min(2.2, 1600 / maxDim)
+        : 1;
 
     const ocrW = Math.max(1, Math.round(rawW * ocrScale));
     const ocrH = Math.max(1, Math.round(rawH * ocrScale));
@@ -808,33 +1305,50 @@ export async function preprocessImageForOcr(source: Blob | string): Promise<{
     ocrCtx.fillRect(0, 0, ocrW, ocrH);
     ocrCtx.drawImage(img, 0, 0, ocrW, ocrH);
 
-    // Gentle auto-levels grayscale boost so phone photos of ID cards / paper forms read cleanly
+    // Percentile histogram normalization (2%..98%) so glare or dark borders never clip ink
     const imageData = ocrCtx.getImageData(0, 0, ocrW, ocrH);
     const data = imageData.data;
-    let minLum = 255;
-    let maxLum = 0;
+    const hist = new Uint32Array(256);
+    let sampleCount = 0;
+
     for (let i = 0; i < data.length; i += 16) {
       const lum = Math.round(
         0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2]
       );
-      if (lum < minLum) minLum = lum;
-      if (lum > maxLum) maxLum = lum;
+      hist[lum] += 1;
+      sampleCount += 1;
     }
-    const range = Math.max(40, maxLum - minLum);
+
+    const lowTarget = Math.floor(sampleCount * 0.02);
+    const highTarget = Math.ceil(sampleCount * 0.98);
+    let lowLum = 0;
+    let highLum = 255;
+    let acc = 0;
+    for (let v = 0; v < 256; v += 1) {
+      acc += hist[v];
+      if (acc <= lowTarget) lowLum = v;
+      if (acc >= highTarget) {
+        highLum = v;
+        break;
+      }
+    }
+
+    const range = Math.max(45, highLum - lowLum);
     for (let i = 0; i < data.length; i += 4) {
       const lum = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
-      const stretched = Math.max(
-        0,
-        Math.min(255, Math.round(((lum - minLum) / range) * 255))
-      );
-      data[i] = stretched;
-      data[i + 1] = stretched;
-      data[i + 2] = stretched;
+      let norm = ((lum - lowLum) / range) * 255;
+      norm = Math.max(0, Math.min(255, norm));
+      // Mild S-curve sharpening to separate dark text from paper background
+      const contrasted =
+        norm < 155 ? Math.max(0, norm * 0.85) : Math.min(255, 155 + (norm - 155) * 1.15);
+      const byte = Math.round(contrasted);
+      data[i] = byte;
+      data[i + 1] = byte;
+      data[i + 2] = byte;
     }
     ocrCtx.putImageData(imageData, 0, 0);
     const ocrDataUrl = ocrCanvas.toDataURL('image/png');
 
-    // Compact colour preview for UI thumbnail & optional EmployeeDocument attachment
     const prevScale = maxDim > 1100 ? 1100 / maxDim : 1;
     const prevW = Math.max(1, Math.round(rawW * prevScale));
     const prevH = Math.max(1, Math.round(rawH * prevScale));
@@ -866,7 +1380,6 @@ export async function runEmployeeImageOcr(
   source: Blob | string,
   options: {
     branches: Branch[];
-    departments: string[];
     customFields: CustomField[];
   },
   onProgress?: (update: OcrProgressUpdate) => void
@@ -875,7 +1388,7 @@ export async function runEmployeeImageOcr(
   previewDataUrl: string;
   sizeLabel: string;
 }> {
-  onProgress?.({ status: 'Enhancing photo clarity…', progress: 8 });
+  onProgress?.({ status: 'Enhancing full-page clarity…', progress: 8 });
   const { ocrDataUrl, previewDataUrl, sizeLabel } =
     await preprocessImageForOcr(source);
 
@@ -885,15 +1398,24 @@ export async function runEmployeeImageOcr(
   const worker = await Tesseract.createWorker('eng', 1, {
     logger: msg => {
       if (msg.status === 'recognizing text') {
-        const pct = Math.min(96, Math.round(25 + (msg.progress || 0) * 70));
-        onProgress?.({ status: 'Reading details from photo…', progress: pct });
+        const pct = Math.min(96, Math.round(22 + (msg.progress || 0) * 73));
+        onProgress?.({
+          status: 'Scanning ID, contact, dates, address & role…',
+          progress: pct,
+        });
       }
     },
   });
 
   try {
+    // PSM 6 reads across horizontal rows cleanly without splitting multi-column forms vertically
+    await worker.setParameters({
+      tessedit_pageseg_mode: Tesseract.PSM?.SINGLE_BLOCK ?? ('6' as never),
+      preserve_interword_spaces: '1',
+    });
+
     const result = await worker.recognize(ocrDataUrl);
-    onProgress?.({ status: 'Mapping fields to employee form…', progress: 99 });
+    onProgress?.({ status: 'Matching priority employee fields…', progress: 99 });
     const extraction = extractEmployeeFieldsFromOcrText(
       result.data?.text ?? '',
       options

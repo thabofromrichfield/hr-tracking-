@@ -14,7 +14,6 @@ import {
   SwitchCamera,
   X,
 } from 'lucide-react';
-import { departments } from './data';
 import {
   Branch,
   CustomField,
@@ -29,6 +28,7 @@ import {
   type EmployeeBlockKey,
   type EmployeeFormDraft,
   type EmployeeOcrExtraction,
+  PRIORITY_OCR_FIELDS,
   runEmployeeImageOcr,
 } from './lib/employee-ocr.ts';
 
@@ -43,7 +43,7 @@ const blank: EmployeeFormDraft = {
   emergencyName: '',
   emergencyPhone: '',
   jobTitle: '',
-  department: 'Engineering',
+  department: '',
   manager: '',
   employmentType: 'Full-time',
   startDate: new Date().toISOString().slice(0, 10),
@@ -205,7 +205,6 @@ export default function EmployeeForm({
         source,
         {
           branches,
-          departments,
           customFields,
         },
         update => {
@@ -229,14 +228,11 @@ export default function EmployeeForm({
           ...(extraction.values.custom ?? {}),
         };
 
-        // When scanning a fresh employee, clear default-only fields that were missing on the image
-        // so missing blocks/fields are genuinely skipped & optional rather than silently faked.
         const baseForMissing = employee
           ? prev
           : {
               ...prev,
               startDate: extraction.values.startDate ?? '',
-              department: extraction.values.department ?? '',
               monthlySalary: extraction.values.monthlySalary ?? 0,
             };
 
@@ -306,8 +302,6 @@ export default function EmployeeForm({
     return 'none';
   };
 
-  // Before OCR scan: preserve standard required fields.
-  // After OCR scan: missing fields are flagged Optional and never block registration!
   const isFieldRequired = (defaultRequired: boolean): boolean =>
     hasScanned ? false : defaultRequired;
 
@@ -333,7 +327,6 @@ export default function EmployeeForm({
     const cleanedForm: EmployeeFormDraft = {
       ...form,
       fullName: fallbackName,
-      department: form.department || 'Unassigned',
     };
 
     const scanDoc: EmployeeDocument | undefined =
@@ -433,7 +426,7 @@ export default function EmployeeForm({
       subtitle={
         employee
           ? `Update ${employee.fullName}'s information`
-          : 'Take a picture of an ID, CV, or form to auto-fill details — missing blocks are skipped as optional'
+          : 'Scan an ID, CV, contract, or HR sheet to auto-fill key details — missing blocks are skipped as optional'
       }
       onClose={() => {
         stopCameraStream();
@@ -443,7 +436,6 @@ export default function EmployeeForm({
     >
       <form onSubmit={submit} noValidate={hasScanned}>
         <div className="modal-body employee-form">
-          {/* OCR Camera & Image Auto-Fill Panel */}
           <div className="ocr-panel">
             <div className="ocr-panel-top">
               <div className="ocr-panel-title">
@@ -453,9 +445,12 @@ export default function EmployeeForm({
                 <div>
                   <strong>Auto-fill from picture (OCR)</strong>
                   <p>
-                    Take a picture of an ID card, CV, offer letter, or HR sheet.
-                    Available details fill automatically; missing blocks are
-                    flagged optional and skipped.
+                    Hunts down <strong>ID number</strong>,{' '}
+                    <strong>Contact number</strong>, <strong>Date of birth</strong>,{' '}
+                    <strong>Full name</strong>, <strong>Email address</strong>,{' '}
+                    <strong>Home address</strong>, <strong>Job title</strong>, and{' '}
+                    <strong>Start date</strong> first. Missing blocks are marked
+                    optional and skipped.
                   </p>
                 </div>
               </div>
@@ -494,7 +489,6 @@ export default function EmployeeForm({
               </div>
             </div>
 
-            {/* Hidden inputs for upload + native device camera fallback */}
             <input
               ref={ocrUploadRef}
               type="file"
@@ -527,7 +521,7 @@ export default function EmployeeForm({
                 </div>
                 <div className="ocr-camera-controls">
                   <span className="ocr-camera-hint">
-                    Align the ID card or document clearly inside the frame
+                    Hold steady so all text on the page or card is sharp
                   </span>
                   <div>
                     <button
@@ -581,13 +575,20 @@ export default function EmployeeForm({
             )}
 
             {cameraError && (
-              <div className="auth-notice auth-notice--info" style={{ marginTop: 12, marginBottom: 0 }}>
+              <div
+                className="auth-notice auth-notice--info"
+                style={{ marginTop: 12, marginBottom: 0 }}
+              >
                 {cameraError}
               </div>
             )}
 
             {scanError && (
-              <div role="alert" className="auth-notice auth-notice--error" style={{ marginTop: 12, marginBottom: 0 }}>
+              <div
+                role="alert"
+                className="auth-notice auth-notice--error"
+                style={{ marginTop: 12, marginBottom: 0 }}
+              >
                 {scanError}
               </div>
             )}
@@ -603,18 +604,26 @@ export default function EmployeeForm({
                 )}
                 <div className="ocr-result-copy">
                   <strong>
-                    {scanExtraction.filledFields.length > 0
-                      ? `Filled ${scanExtraction.filledFields.length} field${
-                          scanExtraction.filledFields.length === 1 ? '' : 's'
-                        } from picture`
-                      : 'Picture scanned — no structured text matched'}
+                    {scanExtraction.priorityFound.length} of{' '}
+                    {PRIORITY_OCR_FIELDS.length} priority fields captured (
+                    {scanExtraction.filledFields.length} total fields filled)
                   </strong>
-                  <span>
-                    {scanExtraction.missingFields.length} field
-                    {scanExtraction.missingFields.length === 1 ? '' : 's'} not on
-                    image — marked <strong>Optional</strong> and skipped if left
-                    blank.
-                  </span>
+                  <div className="ocr-priority-chips">
+                    {PRIORITY_OCR_FIELDS.map(item => {
+                      const found = filledSet.has(item.key);
+                      return (
+                        <span
+                          key={item.key}
+                          className={`ocr-pill ${
+                            found ? 'ocr-pill--filled' : 'ocr-pill--optional'
+                          }`}
+                        >
+                          {found && <CheckCircle2 size={10} />}
+                          {item.label}: {found ? 'Filled' : 'Optional'}
+                        </span>
+                      );
+                    })}
+                  </div>
                   <div className="ocr-result-options">
                     {!employee && scanPreviewUrl && (
                       <label className="ocr-AttachCheck">
@@ -687,18 +696,6 @@ export default function EmployeeForm({
                 />
               </Field>
               <Field
-                label="Employee number"
-                required={isFieldRequired(true)}
-                ocrState={fieldState('employeeNumber', form.employeeNumber)}
-              >
-                <input
-                  required={isFieldRequired(true)}
-                  value={form.employeeNumber}
-                  onChange={e => set('employeeNumber', e.target.value)}
-                  placeholder={hasScanned ? 'Optional (not on image)' : 'PF-0000'}
-                />
-              </Field>
-              <Field
                 label="ID number"
                 required={isFieldRequired(true)}
                 ocrState={fieldState('idNumber', form.idNumber)}
@@ -723,6 +720,18 @@ export default function EmployeeForm({
                 />
               </Field>
               <Field
+                label="Contact number"
+                required={isFieldRequired(true)}
+                ocrState={fieldState('phone', form.phone)}
+              >
+                <input
+                  required={isFieldRequired(true)}
+                  value={form.phone}
+                  onChange={e => set('phone', e.target.value)}
+                  placeholder="+27"
+                />
+              </Field>
+              <Field
                 label="Email address"
                 required={isFieldRequired(true)}
                 ocrState={fieldState('email', form.email)}
@@ -736,15 +745,15 @@ export default function EmployeeForm({
                 />
               </Field>
               <Field
-                label="Contact number"
+                label="Employee number"
                 required={isFieldRequired(true)}
-                ocrState={fieldState('phone', form.phone)}
+                ocrState={fieldState('employeeNumber', form.employeeNumber)}
               >
                 <input
                   required={isFieldRequired(true)}
-                  value={form.phone}
-                  onChange={e => set('phone', e.target.value)}
-                  placeholder="+27"
+                  value={form.employeeNumber}
+                  onChange={e => set('employeeNumber', e.target.value)}
+                  placeholder={hasScanned ? 'Optional (not on image)' : 'PF-0000'}
                 />
               </Field>
               <Field
@@ -755,7 +764,7 @@ export default function EmployeeForm({
                 <input
                   value={form.address}
                   onChange={e => set('address', e.target.value)}
-                  placeholder="Street, suburb, city"
+                  placeholder="Street, suburb, city, postal code"
                 />
               </Field>
               <Field
@@ -795,27 +804,22 @@ export default function EmployeeForm({
                   required={isFieldRequired(true)}
                   value={form.jobTitle}
                   onChange={e => set('jobTitle', e.target.value)}
-                  placeholder={hasScanned ? 'Optional (not on image)' : 'e.g. Product Designer'}
+                  placeholder={
+                    hasScanned ? 'Optional (not on image)' : 'e.g. Product Designer'
+                  }
                 />
               </Field>
               <Field
-                label="Department"
+                label="Start date"
                 required={isFieldRequired(true)}
-                ocrState={fieldState('department', form.department)}
+                ocrState={fieldState('startDate', form.startDate)}
               >
-                <select
-                  value={form.department}
-                  onChange={e => set('department', e.target.value)}
-                >
-                  {hasScanned && !filledSet.has('department') && (
-                    <option value="">Optional (not on image)</option>
-                  )}
-                  {departments.map(d => (
-                    <option key={d} value={d}>
-                      {d}
-                    </option>
-                  ))}
-                </select>
+                <input
+                  required={isFieldRequired(true)}
+                  type="date"
+                  value={form.startDate}
+                  onChange={e => set('startDate', e.target.value)}
+                />
               </Field>
               <Field
                 label="Reports to"
@@ -844,18 +848,6 @@ export default function EmployeeForm({
                   <option>Part-time</option>
                   <option>Contract</option>
                 </select>
-              </Field>
-              <Field
-                label="Start date"
-                required={isFieldRequired(true)}
-                ocrState={fieldState('startDate', form.startDate)}
-              >
-                <input
-                  required={isFieldRequired(true)}
-                  type="date"
-                  value={form.startDate}
-                  onChange={e => set('startDate', e.target.value)}
-                />
               </Field>
               <Field
                 label="Branch"
