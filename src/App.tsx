@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { AlertTriangle, Bell, Building2, CalendarCheck, CalendarDays, Check, ChevronDown, ChevronRight, CircleHelp, Cloud, Clock, Download, FileArchive, FileSpreadsheet, FileText, LayoutDashboard, LogOut, Menu, Plus, Receipt, Search, Settings, ShieldAlert, Upload, UserCog, UserPlus, UserRound, UsersRound, X } from 'lucide-react';
 import { initialBranches, initialCustomFields, initialEmployees } from './data';
-import { Branch, CustomField, Employee, LeaveRequest, Payslip, TimeEntry, Warning } from './types';
+import { Branch, CustomField, Employee, EmployeeDocument, LeaveRequest, Payslip, TimeEntry, Warning } from './types';
 import { Avatar, Modal } from './components';
 import { createWorkspaceZip, readWorkspaceBackup, WorkspaceImport } from './backup';
 import { coversDate, downloadFile, localDate } from './time';
@@ -163,11 +163,13 @@ export default function App() {
   const openDirectory = (status?: string) => { setDirectoryStatus(status); setView('directory'); };
   const openBranch = (id?: string) => { setSelectedBranchId(id); setView('branches'); };
 
-  const saveEmployee = (data: Omit<Employee, 'id' | 'lastUpdated' | 'workHistory' | 'documents'>) => {
+  const saveEmployee = (data: Omit<Employee, 'id' | 'lastUpdated' | 'workHistory' | 'documents'>, initialDocument?: EmployeeDocument) => {
     const clean: Omit<Employee, 'id' | 'lastUpdated' | 'workHistory' | 'documents'> = { ...data, branchId: data.branchId || undefined, monthlySalary: Number(data.monthlySalary) || 0 };
-    if (employeeModal === 'edit' && selected) { setEmployees(list => list.map(employee => employee.id === selected.id ? { ...employee, ...clean, lastUpdated: new Date().toISOString() } : employee)); notify('Employee profile updated'); }
-    else {
-      const employee: Employee = { ...clean, id: crypto.randomUUID(), custom: { ...data.custom }, workHistory: [], documents: [], lastUpdated: new Date().toISOString() };
+    if (employeeModal === 'edit' && selected) {
+      setEmployees(list => list.map(employee => employee.id === selected.id ? { ...employee, ...clean, documents: initialDocument ? [initialDocument, ...employee.documents] : employee.documents, lastUpdated: new Date().toISOString() } : employee));
+      notify('Employee profile updated');
+    } else {
+      const employee: Employee = { ...clean, id: crypto.randomUUID(), custom: { ...data.custom }, workHistory: [], documents: initialDocument ? [initialDocument] : [], lastUpdated: new Date().toISOString() };
       setEmployees(list => [...list, employee]);
       setSelectedId(employee.id);
       setView('profile');

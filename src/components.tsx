@@ -8,7 +8,7 @@ export const inkColors = ['#31634d', '#8a5e2d', '#505b8d', '#94594f', '#397278',
 
 export function Avatar({ employee, size = 'md' }: { employee: Employee; size?: 'xs' | 'sm' | 'md' | 'lg' | 'xl' }) {
   const index = Math.max(0, Number(employee.id.replace(/\D/g, '')) - 1) % colors.length;
-  const initials = employee.fullName.split(' ').map(n => n[0]).slice(0, 2).join('');
+  const initials = (employee.fullName || '?').trim().split(/\s+/).filter(Boolean).map(n => n[0]).slice(0, 2).join('').toUpperCase() || '?';
   return <div className={`avatar avatar-${size}`} style={{ background: colors[index], color: inkColors[index] }}>
     {employee.photo ? <img src={employee.photo} alt={employee.fullName} /> : initials}
   </div>;
@@ -63,7 +63,10 @@ export function formatDate(date?: string, long = false) {
 }
 
 export function yearsAtCompany(startDate: string, endDate?: string) {
-  const years = (new Date(endDate || Date.now()).getTime() - new Date(startDate).getTime()) / 31557600000;
+  if (!startDate) return '—';
+  const startMs = new Date(startDate).getTime();
+  if (Number.isNaN(startMs)) return '—';
+  const years = (new Date(endDate || Date.now()).getTime() - startMs) / 31557600000;
   if (years < 1) return `${Math.max(1, Math.round(years * 12))} months`;
   return `${years.toFixed(1)} years`;
 }

@@ -1,4 +1,4 @@
-import { Branch, CustomField, Employee } from './types';
+import type { Branch, CustomField, Employee } from './types.ts';
 
 /**
  * A new workspace starts with no employees. The three operating branches are
