@@ -1,6 +1,6 @@
 /* Goodfood reference adapted for Peopleflow HR */
 :root{font-family:'Inter',sans-serif;--green:#5B6CF9;--green-dark:#4656e8;--green-light:#EEF0FF;--ink:#20242d;--muted:#98a0ae;--line:#edf0f4;--card:#fff;--sidebar:244px;--shadow:0 2px 5px rgba(30,40,70,.025);color:#4b5563;background:#F3F4F8}
-body{background:#F3F4F8;padding:20px;min-width:360px;color:#4b5563}h1,h2,h3,.stat-value,.donut strong{font-family:'Inter',sans-serif}.app-shell{display:flex;width:100%;max-width:1360px;min-height:780px;margin:0 auto;border-radius:24px;overflow:hidden;background:#fff;border:1px solid #e9ecf1;box-shadow:0 14px 45px rgba(41,51,80,.09)}
+body{background:#F3F4F8;padding:20px;min-width:0;color:#4b5563}h1,h2,h3,.stat-value,.donut strong{font-family:'Inter',sans-serif}.app-shell{display:flex;width:100%;max-width:1360px;min-height:780px;margin:0 auto;border-radius:24px;overflow:hidden;background:#fff;border:1px solid #e9ecf1;box-shadow:0 14px 45px rgba(41,51,80,.09)}
 .sidebar{position:sticky;top:20px;left:auto;inset:auto;width:244px;height:calc(100vh - 40px);min-height:740px;flex:0 0 244px;background:#fff;border-right:1px solid #edf0f4;padding:0 20px;z-index:30}.brand{height:88px;padding:0 9px;gap:11px;color:#171c26;font-size:20px;font-weight:700;letter-spacing:-.8px}.brand-mark{width:35px;height:35px;border-radius:50%;background:#5B6CF9;display:flex;align-items:center;justify-content:center;gap:2px;transform:none;box-shadow:0 5px 12px #5b6cf93b}.brand-mark span{width:3px;background:#fff!important;border-radius:3px}.brand-mark span:nth-child(1){height:10px}.brand-mark span:nth-child(2){height:17px}.brand-mark span:nth-child(3){height:13px}.brand-dot{color:#5B6CF9}.sidebar-workspace-label{display:none}.workspace-switch{display:none}.main-nav{gap:5px}.nav-label{display:block;padding:0 12px 8px;font-size:9px;letter-spacing:1.1px;color:#a0a7b2}.nav-label-second{display:block;margin-top:24px}.nav-item{height:43px;padding:0 12px;border-radius:11px;color:#737d8d;font-size:11px;font-weight:500;gap:11px;background:transparent}.nav-item svg{display:block;width:17px;color:#8b95a4}.nav-item:hover{background:#f7f8fb;color:#272e3b;transform:none}.nav-item.active{background:#EEF0FF;color:#5B6CF9;font-size:11px;font-weight:600;letter-spacing:0}.nav-item.active svg{color:#5B6CF9}.nav-item b{display:inline-block;margin-left:auto;background:#f1f3f6;border:0;color:#8b95a2;font-size:8px;padding:2px 6px;border-radius:5px}.nav-item.active b{background:#dfe3ff;color:#5B6CF9}.sidebar-bottom{padding-bottom:20px}.quick-add{display:none}.help-link{color:#8993a2;border-top:1px solid #edf0f4;padding:17px 10px 12px;font-size:10px}.help-link:hover{color:#5B6CF9}.help-link kbd{border-color:#e2e6ec;color:#98a1ae}.sidebar-copyright{border-top:1px solid #edf0f4;padding:15px 10px 0;font-size:9px;color:#9aa3af;line-height:1.7}.sidebar-copyright span{color:#b0b7c0}
 .main-shell{margin-left:0;background:#F3F4F8;border-radius:0;min-width:0;min-height:780px;overflow:hidden}.topbar{height:76px;padding:0 30px;background:#F3F4F8;border:0;position:relative;backdrop-filter:none}.topbar-left{width:0}.breadcrumb{display:none}.topbar-right{width:100%;justify-content:flex-end;gap:11px}.global-search-wrap{margin-right:auto}.global-search{height:38px;width:285px;background:#fff;border:1px solid #e9edf2;border-radius:11px;box-shadow:0 2px 4px #303a5a03;padding:0 12px}.global-search input{font-size:10px}.global-search kbd{border-color:#e4e8ee;font-size:8px}.workspace-chip{height:36px;display:flex;align-items:center;gap:7px;background:white;border:1px solid #e9edf2;border-radius:10px;padding:0 11px;color:#505b6b;box-shadow:0 2px 4px #303a5a03;font-size:10px;font-weight:600;white-space:nowrap}.workspace-chip>svg:first-child{color:#5B6CF9}.workspace-chip>svg:last-child{color:#a0a8b4;margin-left:4px}.notification-btn{background:#fff;border:1px solid #e9edf2;border-radius:10px;width:37px;height:37px;box-shadow:0 2px 4px #303a5a03}.notification-btn i{background:#ef5b5b}.topbar-divider{display:none}.topbar-user{background:white;border:1px solid #e9edf2;border-radius:10px;height:37px;padding:3px 8px 3px 4px;font-size:9px}.topbar-user .user-avatar{width:28px;height:28px;background:#eef0ff;color:#5B6CF9}.page-content{padding:0 30px 32px;max-width:none;background:#F3F4F8}.app-footer{display:none}
 .btn{border-radius:10px;font-size:10px;min-height:37px;padding:0 14px;font-weight:600}.btn-primary{background:#5B6CF9;border-color:#5B6CF9;box-shadow:0 4px 10px #5b6cf925}.btn-primary:hover{background:#4656e8}.btn-secondary{border-color:#e4e8ee;color:#667185;background:#fff}.btn-small{border-radius:8px}.card{background:#fff;border:1px solid #e9edf2;border-radius:17px;box-shadow:0 2px 5px #28365405}.page-heading{margin-bottom:24px}.page-heading h1{font-size:24px;font-weight:700;letter-spacing:-.7px;color:#20242d}.page-heading>div>p{font-size:10px;color:#9aa2ae}.eyebrow{font-size:8px;color:#8b95e8;letter-spacing:1.2px}.back-link{font-size:10px;color:#8d97a5}.text-btn{color:#5B6CF9;font-size:10px}
@@ -173,30 +173,885 @@ body{background:radial-gradient(circle at 8% 8%,rgba(167,180,255,.34),transparen
 @media print{body.payslip-open *{visibility:hidden}body.payslip-open .payslip-sheet,body.payslip-open .payslip-sheet *{visibility:visible}body.payslip-open .payslip-sheet{position:absolute;left:0;top:0;width:100%;box-shadow:none;padding:0}body.payslip-open .modal-backdrop{position:static;background:none;padding:0}body.payslip-open .modal{box-shadow:none;background:#fff;border:0;max-height:none}body.payslip-open .modal-head,body.payslip-open .modal-footer{display:none!important}}
 @media print{body{padding:0}.app-shell{display:block;border:0;box-shadow:none}.gf-metrics-grid,.gf-bottom-grid{display:grid;grid-template-columns:repeat(2,1fr)}.topbar{display:none}.card,.gf-card{animation:none;transform:none}}
 
-/* Seamless surface: one background behind the sidebar and dashboard */
-html{height:100%}
-body{height:100%;padding:0;overflow:hidden;overscroll-behavior:none}
-.app-shell{height:100vh;height:100dvh;min-height:0;max-width:none;margin:0;border:0;border-radius:0;background:transparent;box-shadow:none;backdrop-filter:none;-webkit-backdrop-filter:none}
-.main-shell{height:100%;min-height:0;display:flex;flex-direction:column;overflow:hidden;background:transparent;border-radius:0}
-.topbar{flex:0 0 auto;background:transparent;border-bottom:0}
-.page-content{flex:1 1 auto;min-height:0;overflow-y:auto;overscroll-behavior:contain;scrollbar-width:thin;background:transparent}
+/* Seamless surface: desktop split-pane + native mobile viewport scrolling */
+.sidebar-mobile-head{display:none}
 @media(min-width:901px){
+  html{height:100%}
+  body{height:100%;padding:0;overflow:hidden;overscroll-behavior:none}
+  .app-shell{height:100vh;height:100dvh;min-height:0;max-width:none;margin:0;border:0;border-radius:0;background:transparent;box-shadow:none;backdrop-filter:none;-webkit-backdrop-filter:none}
+  .main-shell{height:100%;min-height:0;display:flex;flex-direction:column;overflow:hidden;background:transparent;border-radius:0}
+  .topbar{flex:0 0 auto;background:transparent;border-bottom:0}
+  .page-content{flex:1 1 auto;min-height:0;overflow-y:auto;overscroll-behavior:contain;scrollbar-width:thin;background:transparent}
   .sidebar{height:100%;min-height:0;top:0;border-right:1px solid rgba(255,255,255,.55);display:flex;flex-direction:column;overflow:hidden}
   .main-nav{flex:1 1 auto;min-height:0;overflow-y:auto;overscroll-behavior:contain;scrollbar-width:thin;padding-right:4px;margin-right:-4px}
   .sidebar-top-space,.sidebar-workspace-label,.sidebar-bottom{flex:0 0 auto}
 }
+
+/* ==========================================================================
+   MOBILE & CELLPHONE RESPONSIVE ARCHITECTURE (<= 900px, <= 768px, <= 640px)
+   Prevents horizontal blowout, iOS/Android input auto-zoom, broken topbar
+   wrapping, hidden table columns, and clipped modals/popovers on cellphones.
+   ========================================================================== */
 @media(max-width:900px){
-  .app-shell{height:100vh;min-height:0}
-  @supports (height:100dvh){.app-shell{height:100dvh}}
-  .main-shell{height:100%;min-height:0}
-  .sidebar{position:fixed;top:0;bottom:0;left:0;height:100vh;height:100dvh;width:244px;display:flex;flex-direction:column;overflow:hidden;min-height:0;border-radius:0}
-  .main-nav{flex:1 1 auto;min-height:0;overflow-y:auto;overscroll-behavior:contain}
+  html,body{
+    height:auto;
+    min-height:100dvh;
+    width:100%;
+    max-width:100%;
+    min-width:0;
+    padding:0;
+    overflow-x:clip;
+    overflow-y:auto;
+    overscroll-behavior-y:auto;
+    -webkit-text-size-adjust:100%;
+  }
+  .app-shell{
+    display:block;
+    width:100%;
+    max-width:100%;
+    height:auto;
+    min-height:100dvh;
+    margin:0;
+    border:0;
+    border-radius:0;
+    background:transparent;
+    box-shadow:none;
+    overflow:visible;
+  }
+  .main-shell{
+    width:100%;
+    max-width:100%;
+    min-width:0;
+    height:auto;
+    min-height:100dvh;
+    margin-left:0;
+    display:flex;
+    flex-direction:column;
+    overflow:visible;
+    background:transparent;
+  }
+  .page-content{
+    width:100%;
+    max-width:100%;
+    min-width:0;
+    height:auto;
+    overflow:visible;
+    padding:16px 18px max(28px,env(safe-area-inset-bottom));
+    background:transparent;
+  }
+  .nav-overlay{
+    position:fixed;
+    inset:0;
+    background:rgba(20,28,46,.45);
+    backdrop-filter:blur(3px);
+    -webkit-backdrop-filter:blur(3px);
+    z-index:44;
+  }
+  .sidebar{
+    position:fixed;
+    top:0;
+    bottom:0;
+    left:0;
+    width:min(286px,84vw);
+    height:100vh;
+    height:100dvh;
+    min-height:0;
+    border-radius:0 18px 18px 0;
+    background:rgba(255,255,255,.97);
+    border-right:1px solid #e2e8f0;
+    box-shadow:18px 0 48px rgba(20,28,46,.22);
+    padding:0 16px max(16px,env(safe-area-inset-bottom));
+    display:flex;
+    flex-direction:column;
+    overflow:hidden;
+    z-index:50;
+    transform:translateX(-105%);
+    transition:transform .24s cubic-bezier(.2,.8,.2,1);
+  }
+  .sidebar.mobile-open{transform:translateX(0)}
+  .sidebar-top-space{display:none}
+  .sidebar-mobile-head{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    padding:max(14px,env(safe-area-inset-top)) 4px 12px;
+    margin-bottom:10px;
+    border-bottom:1px solid #edf0f5;
+    flex:0 0 auto;
+  }
+  .sidebar-mobile-brand{
+    display:flex;
+    align-items:center;
+    gap:10px;
+  }
+  .sidebar-mobile-brand strong{
+    font-size:17px;
+    font-weight:700;
+    letter-spacing:-.5px;
+    color:#1c2331;
+  }
+  .main-nav{
+    flex:1 1 auto;
+    min-height:0;
+    overflow-y:auto;
+    overscroll-behavior:contain;
+    -webkit-overflow-scrolling:touch;
+    padding-bottom:10px;
+  }
+  .nav-item{
+    min-height:44px;
+    font-size:13px;
+    padding:0 12px;
+  }
+  .nav-item.active{font-size:13px}
+  .nav-item b{font-size:10px;padding:2px 7px}
   .sidebar-bottom{flex:0 0 auto}
+  .topbar{
+    position:sticky;
+    top:0;
+    z-index:35;
+    background:rgba(242,244,250,.9);
+    backdrop-filter:blur(16px);
+    -webkit-backdrop-filter:blur(16px);
+    border-bottom:1px solid rgba(224,230,240,.85);
+    padding:10px 18px;
+    height:auto;
+    min-height:60px;
+  }
+  .invite-grid{grid-template-columns:minmax(0,1fr)}
 }
+
+/* Prevent mobile browser auto-zoom on form focus & boost touch readability */
+@media(max-width:768px){
+  .field input,
+  .field select,
+  .field textarea,
+  .global-search input,
+  .search-input input,
+  .filter-bar select,
+  .attendance-search input,
+  .week-nav input[type=date],
+  .sort-select input[type=date],
+  .sort-select input[type=month],
+  .sort-select select,
+  .lock-card input{
+    font-size:16px!important;
+  }
+  .field input,
+  .field select{
+    height:42px;
+    padding:8px 12px;
+  }
+  .field>span,
+  .lock-card .field label{
+    font-size:12px;
+  }
+}
+
 @media(max-width:640px){
-  .app-shell{height:100vh;height:100dvh;border-radius:0}
-  .sidebar{height:100vh;height:100dvh}
+  /* 1. Clean 2-row sticky mobile topbar:
+        Row 1: [Menu + Page Title]  [Export] [+Add] [Bell] [User]
+        Row 2: [Full-width employee search bar] */
+  .topbar{
+    display:grid;
+    grid-template-columns:minmax(0,1fr) auto auto auto;
+    align-items:center;
+    gap:9px 7px;
+    padding:max(10px,env(safe-area-inset-top)) 14px 10px;
+  }
+  .topbar-left{
+    grid-column:1;
+    grid-row:1;
+    width:auto;
+    min-width:0;
+    display:flex;
+    align-items:center;
+    gap:9px;
+  }
+  .mobile-menu{
+    display:inline-grid;
+    width:38px;
+    height:38px;
+    margin-right:0;
+    border-radius:10px;
+    flex-shrink:0;
+  }
+  .topbar .breadcrumb{
+    display:block;
+    font-size:15px;
+    font-weight:700;
+    letter-spacing:-.3px;
+    color:#1e2430;
+    white-space:nowrap;
+    overflow:hidden;
+    text-overflow:ellipsis;
+  }
+  .topbar-right{
+    display:contents;
+  }
+  .workspace-chip,
+  .topbar-divider{
+    display:none!important;
+  }
+  .topbar-actions{
+    grid-column:2;
+    grid-row:1;
+    order:0;
+    display:flex;
+    align-items:center;
+    gap:6px;
+  }
+  .topbar-actions .btn{
+    width:38px;
+    height:38px;
+    min-height:38px;
+    padding:0;
+    border-radius:10px;
+  }
+  .topbar-actions .btn span,
+  .topbar-actions .topbar-export-trigger svg:last-child{
+    display:none;
+  }
+  .topbar-notify-wrap{
+    grid-column:3;
+    grid-row:1;
+    order:0;
+  }
+  .notification-btn{
+    width:38px;
+    height:38px;
+    border-radius:10px;
+  }
+  .topbar-user-wrap{
+    grid-column:4;
+    grid-row:1;
+    order:0;
+  }
+  .topbar-user{
+    width:38px;
+    height:38px;
+    padding:0;
+    justify-content:center;
+    border-radius:10px;
+  }
+  .topbar-user>span,
+  .topbar-user>svg{
+    display:none;
+  }
+  .global-search-wrap{
+    grid-column:1/-1;
+    grid-row:2;
+    order:0;
+    width:100%;
+    margin:0;
+  }
+  .global-search{
+    width:100%;
+    min-width:0;
+    height:40px;
+    border-radius:11px;
+    padding:0 12px;
+  }
+  .global-search kbd{display:none}
+
+  /* Keep all topbar popovers safely anchored inside phone viewport */
+  .topbar-export-menu,
+  .notifications-pop,
+  .topbar-user-wrap .user-menu{
+    position:fixed;
+    left:12px;
+    right:12px;
+    top:calc(max(10px,env(safe-area-inset-top)) + 48px);
+    width:auto;
+    min-width:0;
+    max-width:none;
+    z-index:85;
+  }
+  .search-results{
+    position:fixed;
+    left:12px;
+    right:12px;
+    top:calc(max(10px,env(safe-area-inset-top)) + 98px);
+    width:auto;
+    min-width:0;
+    max-width:none;
+    max-height:60dvh;
+    overflow-y:auto;
+    z-index:85;
+  }
+
+  /* 2. Page container, headings, buttons, and cards */
+  .page-content{
+    padding:14px 14px max(28px,env(safe-area-inset-bottom));
+  }
+  .card,
+  .gf-card{
+    min-width:0;
+    max-width:100%;
+    border-radius:15px;
+  }
+  .gf-summary-card:hover,
+  .composition-card:hover,
+  .recent-employees-card:hover,
+  .group-card:hover{
+    transform:none;
+  }
+  .page-heading,
+  .gf-page-heading{
+    flex-direction:column;
+    align-items:stretch;
+    gap:12px;
+    margin-bottom:16px;
+  }
+  .page-heading h1,
+  .gf-page-heading h1{
+    font-size:21px;
+    line-height:1.2;
+  }
+  .page-heading>div>p,
+  .gf-page-heading p{
+    font-size:12px;
+    line-height:1.45;
+  }
+  .heading-actions{
+    display:flex;
+    flex-wrap:wrap;
+    width:100%;
+    gap:8px;
+  }
+  .heading-actions>.btn,
+  .heading-actions>.relative{
+    flex:1 1 calc(50% - 4px);
+    min-width:135px;
+  }
+  .heading-actions>.relative>.btn{
+    width:100%;
+  }
+  .heading-actions .export-menu{
+    left:0;
+    right:auto;
+    min-width:210px;
+    max-width:calc(100vw - 28px);
+  }
+  .page-heading>.btn{
+    width:100%;
+  }
+  .btn{
+    min-height:40px;
+    font-size:12px;
+    padding:0 14px;
+  }
+  .btn-small{
+    min-height:34px;
+    font-size:11px;
+    padding:0 11px;
+  }
+
+  /* 3. Overview dashboard cards & charts */
+  .gf-metrics-grid,
+  .gf-bottom-grid{
+    grid-template-columns:minmax(0,1fr);
+    gap:14px;
+  }
+  .gf-summary-card,
+  .composition-card,
+  .recent-employees-card,
+  .gf-departments{
+    padding:16px;
+  }
+  .gf-summary-top{
+    gap:10px;
+    flex-wrap:wrap;
+  }
+  .gf-kicker{font-size:10px}
+  .gf-summary-top h2{font-size:26px}
+  .gf-change,
+  .gf-change strong,
+  .gf-period,
+  .gf-target>div:first-child,
+  .gf-target strong{
+    font-size:11px;
+  }
+  .gf-report-btn{
+    font-size:11px;
+    padding:7px 11px;
+  }
+  .gf-status-pills{
+    grid-template-columns:repeat(3,minmax(0,1fr));
+    gap:6px;
+  }
+  .gf-status-pills button{padding:9px 6px}
+  .gf-status-pills span{font-size:9px}
+  .gf-status-pills strong{font-size:11px}
+  .gf-card-title h2,
+  .card-title h2{font-size:14px}
+  .gf-card-title p,
+  .card-title p{font-size:11px}
+  .gf-view-all,
+  .text-btn{font-size:11px}
+  .employment-chart{
+    height:192px;
+    gap:10px;
+    padding:16px 4px 0;
+  }
+  .employment-bar{
+    flex:1 1 0;
+    width:auto;
+    max-width:86px;
+  }
+  .employment-bar>strong{font-size:11px}
+  .employment-bar>small{font-size:10px}
+  .employment-bar-value>span{font-size:10px}
+  .employment-selection{
+    grid-template-columns:minmax(0,1fr);
+    gap:4px;
+  }
+  .employment-selection>div span{font-size:10px}
+  .employment-selection>strong{font-size:12px}
+  .employment-selection>p{font-size:11px;line-height:1.4}
+  .employment-selection>button{
+    grid-column:1;
+    grid-row:auto;
+    justify-self:start;
+    padding:4px 0 0;
+    font-size:12px;
+  }
+  .gf-employee-list strong{font-size:12px}
+  .gf-employee-list span{font-size:11px}
+  .gf-department-grid{
+    grid-template-columns:repeat(2,minmax(0,1fr));
+    gap:14px;
+  }
+  .gf-department-grid span,
+  .gf-department-grid strong{font-size:11px}
+  .gf-leave-note{
+    flex-wrap:wrap;
+    font-size:11px;
+    gap:8px;
+  }
+  .gf-leave-note>button{font-size:11px}
+
+  /* 4. HR stats, toolbars, week navigation, filter bars, and full-column tables */
+  .hr-stats{
+    grid-template-columns:repeat(2,minmax(0,1fr));
+    gap:10px;
+  }
+  .hr-stats>div{
+    min-width:0;
+    padding:12px;
+    gap:10px;
+  }
+  .hr-stats small{font-size:9px}
+  .hr-stats strong{
+    font-size:14px;
+    overflow-wrap:anywhere;
+  }
+  .directory-toolbar{
+    flex-direction:column;
+    align-items:stretch;
+    gap:10px;
+    padding:12px 14px;
+  }
+  .search-input{
+    max-width:none;
+    height:40px;
+  }
+  .sort-select{
+    display:flex!important;
+    align-items:center;
+    justify-content:space-between;
+    gap:8px;
+    width:100%;
+    font-size:12px;
+  }
+  .sort-select input[type=date],
+  .sort-select input[type=month]{
+    max-width:none;
+    height:38px;
+    flex:1;
+  }
+  .sort-select select{
+    height:38px;
+    border:1px solid #dce3ee;
+    background:#fff;
+    border-radius:8px;
+    padding:0 26px 0 10px;
+    flex:1;
+  }
+  .week-nav{
+    width:100%;
+    display:grid;
+    grid-template-columns:38px minmax(0,1fr) 38px;
+    align-items:center;
+    gap:8px;
+  }
+  .week-nav>div{
+    min-width:0;
+    text-align:center;
+  }
+  .week-nav strong{
+    font-size:13px;
+    white-space:normal;
+    line-height:1.25;
+  }
+  .week-nav span{font-size:11px}
+  .week-nav>.btn{
+    grid-column:1/-1;
+    width:100%;
+  }
+  .payslips-page .week-nav{
+    display:flex;
+    flex-direction:column;
+    align-items:stretch;
+    gap:6px;
+  }
+  .leave-tabs{
+    overflow-x:auto;
+    -webkit-overflow-scrolling:touch;
+    padding:10px 12px 0;
+  }
+  .leave-tabs button{
+    white-space:nowrap;
+    font-size:12px;
+    padding:8px 12px 11px;
+  }
+  .warning-categories{
+    overflow-x:auto;
+    -webkit-overflow-scrolling:touch;
+    flex-wrap:nowrap;
+    padding-bottom:4px;
+  }
+  .warning-categories button{
+    flex:0 0 auto;
+    height:36px;
+    font-size:11px;
+  }
+  .filter-bar{
+    flex-wrap:wrap;
+    overflow-x:visible;
+    padding:10px 14px;
+    gap:8px;
+  }
+  .attendance-search{
+    width:100%;
+    min-width:0;
+    flex:1 1 100%;
+    height:40px;
+  }
+  .filter-bar select{
+    flex:1 1 calc(50% - 4px);
+    min-width:130px;
+    max-width:none;
+    height:38px;
+    padding:0 24px 0 10px;
+  }
+  .approve-all,
+  .clear-filters{
+    width:100%;
+    margin-left:0;
+    justify-content:center;
+  }
+  .results-bar,
+  .table-footer{
+    padding:10px 14px;
+    font-size:11px;
+    flex-wrap:wrap;
+    gap:6px;
+  }
+  .table-scroll{
+    width:100%;
+    max-width:100%;
+    overflow-x:auto;
+    -webkit-overflow-scrolling:touch;
+  }
+  .employee-table th,
+  .employee-table td{
+    display:table-cell!important;
+    padding:11px 12px;
+  }
+  .employee-table th{font-size:10px}
+  .employee-table td{font-size:12px}
+  .person-cell{min-width:165px}
+  .person-cell strong{font-size:12px}
+  .person-cell span{font-size:10px}
+  .status{font-size:10px}
+  .mono{font-size:11px!important}
+  .row-actions .icon-btn{
+    width:34px;
+    height:34px;
+  }
+
+  /* 5. Employee Profile, Branches, Settings, Add User, and Account Setup */
+  .profile-top{
+    flex-wrap:wrap;
+    align-items:center;
+    gap:10px;
+    margin-bottom:12px;
+  }
+  .profile-top .back-link{
+    margin-bottom:0;
+    font-size:12px;
+  }
+  .profile-main{
+    flex-direction:column;
+    align-items:flex-start;
+    padding:18px 16px;
+    gap:12px;
+  }
+  .profile-main>div:last-child{
+    width:100%;
+    min-width:0;
+  }
+  .profile-name{
+    flex-direction:row;
+    flex-wrap:wrap;
+    align-items:center;
+    gap:8px;
+  }
+  .profile-name h1{font-size:20px}
+  .profile-role{
+    flex-wrap:wrap;
+    font-size:12px;
+  }
+  .profile-meta{
+    flex-direction:column;
+    gap:6px;
+    font-size:12px;
+  }
+  .profile-meta span,
+  .profile-meta span:last-child{
+    display:flex;
+    overflow-wrap:anywhere;
+  }
+  .profile-summary{
+    display:grid;
+    grid-template-columns:repeat(3,minmax(0,1fr));
+    gap:10px;
+    padding:12px 16px;
+  }
+  .profile-summary span{font-size:10px}
+  .profile-summary strong{font-size:12px}
+  .profile-tabs button{
+    font-size:12px;
+    padding:10px 12px 12px;
+  }
+  .detail-grid{
+    grid-template-columns:minmax(0,1fr);
+    gap:14px;
+    margin-top:16px;
+  }
+  .detail>span{font-size:11px}
+  .detail>div,
+  .employment-list .detail>div{font-size:13px}
+  .emergency-box{
+    flex-wrap:wrap;
+    gap:10px;
+  }
+  .emergency-box strong,
+  .emergency-box b{font-size:12px}
+  .document-row{
+    flex-wrap:wrap;
+    gap:8px;
+  }
+  .doc-name{
+    flex:1 1 calc(100% - 50px);
+  }
+  .doc-name strong{font-size:12px}
+  .doc-name span{font-size:11px}
+  .document-row .icon-btn{
+    width:34px;
+    height:34px;
+  }
+  .group-overview{
+    flex-direction:column;
+    align-items:flex-start;
+    gap:6px;
+    margin:0 0 16px;
+    font-size:12px;
+  }
+  .group-stats{
+    display:grid;
+    grid-template-columns:repeat(2,minmax(0,1fr));
+    gap:12px;
+    padding:14px;
+  }
+  .group-stats>div{
+    padding:0;
+    border-right:0;
+    min-width:0;
+  }
+  .settings-nav{
+    gap:6px;
+    padding-bottom:4px;
+  }
+  .settings-nav button{
+    font-size:12px;
+    padding:10px 14px;
+  }
+  .privacy-hero{
+    flex-direction:column;
+    gap:10px;
+  }
+  .invite-submit-row .btn{
+    width:100%;
+  }
+
+  /* 6. Login screen (AuthScreen) mobile keyboard-safe layout */
+  .lock-screen{
+    min-height:100dvh;
+    justify-content:center;
+    padding:max(20px,env(safe-area-inset-top)) 16px max(24px,env(safe-area-inset-bottom));
+    overflow-y:auto;
+  }
+  .lock-brand{
+    position:static;
+    margin:0 auto 18px;
+  }
+  .lock-card,
+  .lock-card.auth-card-wide{
+    width:100%;
+    max-width:420px;
+    padding:24px 18px;
+    border-radius:18px;
+  }
+  .lock-card>p{font-size:12px}
+  .auth-submit{
+    min-height:44px;
+    font-size:14px;
+  }
+  .auth-pw-toggle{
+    width:44px;
+    min-width:44px;
+  }
+
+  /* 7. Modals, Payslip viewer, & Add Employee OCR scanner as mobile bottom sheets */
+  .modal-backdrop{
+    padding:0;
+    align-items:flex-end;
+    height:100dvh;
+  }
+  .modal,
+  .modal.modal-wide{
+    width:100%;
+    max-width:100%;
+    max-height:95dvh;
+    border-radius:20px 20px 0 0;
+    margin:0;
+  }
+  .modal-head{
+    padding:16px 16px 13px;
+  }
+  .modal-head h2{font-size:16px}
+  .modal-head p{font-size:11px}
+  .modal-body{
+    padding:16px;
+  }
+  .modal-footer{
+    padding:12px 16px max(14px,env(safe-area-inset-bottom));
+    gap:8px;
+    flex-wrap:wrap;
+  }
+  .modal-footer .btn{
+    flex:1 1 calc(50% - 4px);
+    min-height:42px;
+    font-size:13px;
+  }
+  .ocr-panel{padding:14px}
+  .ocr-panel-top{
+    flex-direction:column;
+    align-items:stretch;
+    gap:12px;
+  }
+  .ocr-panel-title{min-width:0}
+  .ocr-panel-title p{font-size:12px}
+  .ocr-panel-actions{
+    width:100%;
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:8px;
+  }
+  .ocr-panel-actions .btn{
+    width:100%;
+    min-height:40px;
+    font-size:12px;
+  }
+  .ocr-panel-actions .btn:nth-child(3){
+    grid-column:1/-1;
+  }
+  .ocr-camera-controls{
+    flex-direction:column;
+    align-items:stretch;
+    gap:10px;
+  }
+  .ocr-camera-controls>div{
+    width:100%;
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:8px;
+  }
+  .ocr-camera-controls>div .btn{
+    width:100%;
+    min-height:40px;
+  }
+  .ocr-camera-controls>div .btn:nth-child(2){
+    grid-column:1/-1;
+    order:-1;
+  }
+  .ocr-result-bar{
+    flex-direction:column;
+    gap:10px;
+  }
+  .ocr-thumb{
+    width:100%;
+    height:112px;
+  }
+  .ocr-pill{font-size:10px;padding:3px 8px}
+  .payslip-head{
+    flex-direction:column;
+    gap:10px;
+  }
+  .payslip-doc{
+    text-align:left;
+    display:grid;
+    grid-template-columns:repeat(2,minmax(0,1fr));
+    gap:4px 12px;
+  }
+  .payslip-net{
+    flex-direction:column;
+    align-items:flex-start;
+    gap:8px;
+  }
+  .toast{
+    left:12px;
+    right:12px;
+    bottom:max(14px,env(safe-area-inset-bottom));
+    transform:none;
+    width:auto;
+    max-width:none;
+    font-size:12px;
+  }
 }
+
+@media(max-width:380px){
+  .gf-status-pills,
+  .gf-department-grid,
+  .hr-stats,
+  .profile-summary,
+  .group-stats,
+  .payslip-person,
+  .generate-summary,
+  .payslip-totals{
+    grid-template-columns:minmax(0,1fr);
+  }
+  .heading-actions>.btn,
+  .heading-actions>.relative{
+    flex:1 1 100%;
+  }
+  .filter-bar select{
+    flex:1 1 100%;
+  }
+}
+
 @media print{
   html,body{height:auto;overflow:visible}
   .app-shell,.main-shell,.page-content{height:auto;overflow:visible}

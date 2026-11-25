@@ -15,11 +15,11 @@ export default function Directory({ employees, branches, initialStatus, onOpen, 
   const [sort, setSort] = useState('Name A–Z');
   const [exportOpen, setExportOpen] = useState(false);
   useEffect(() => {
-    const close = (event: MouseEvent) => {
+    const close = (event: PointerEvent) => {
       if (!(event.target as HTMLElement).closest('.export-menu, .directory-export-trigger')) setExportOpen(false);
     };
-    document.addEventListener('mousedown', close);
-    return () => document.removeEventListener('mousedown', close);
+    document.addEventListener('pointerdown', close);
+    return () => document.removeEventListener('pointerdown', close);
   }, []);
   const filtered = employees.filter(e => {
     const q = query.toLowerCase();

@@ -15,11 +15,11 @@ export default function Profile({ employee, branches, customFields, onBack, onEd
   const [menu, setMenu] = useState(false);
   const docInput = useRef<HTMLInputElement>(null);
   useEffect(() => {
-    const close = (event: MouseEvent) => {
+    const close = (event: PointerEvent) => {
       if (!(event.target as HTMLElement).closest('.profile-actions .context-menu, .profile-actions .icon-btn')) setMenu(false);
     };
-    document.addEventListener('mousedown', close);
-    return () => document.removeEventListener('mousedown', close);
+    document.addEventListener('pointerdown', close);
+    return () => document.removeEventListener('pointerdown', close);
   }, []);
   const inactive = employee.status === 'Resigned' || employee.status === 'Terminated';
   const update = (patch: Partial<Employee>, message: string) => onUpdate({ ...employee, ...patch, lastUpdated: new Date().toISOString() }, message);
