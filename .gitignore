@@ -1,0 +1,17 @@
+# Secrets and local environment (never commit)
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# Dependencies and build outputs
+node_modules/
+.next/
+dist/
+build/
+out/
+coverage/
+.vercel/
+.turbo/
+*.tsbuildinfo
